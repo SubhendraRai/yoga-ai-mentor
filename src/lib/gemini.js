@@ -3,35 +3,27 @@
 // All functions return { success: true, text } or { success: false, error }
 // ─────────────────────────────────────────────────────────────
 
-const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
+let currentApiKey = import.meta.env.VITE_GEMINI_API_KEY;
+const altApiKey = import.meta.env.VITE_GEMINI_API_KEY_ALT;
 const MODEL = 'gemini-2.0-flash';
-const ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${API_KEY}`;
+
+const getEndpoint = (key) => `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${key}`;
 
 /**
  * Low-level call to Gemini generateContent.
- * @param {string} systemInstruction - System-level instruction for the model.
- * @param {Array<{role:string, parts:Array}>} contents - The conversation contents.
- * @returns {Promise<{success:boolean, text?:string, error?:string}>}
  */
-async function callGemini(systemInstruction, contents) {
+async function callGemini(systemInstruction, contents, isRetry = false) {
   try {
     const body = {
       contents,
-      generationConfig: {
-        temperature: 0.8,
-        topP: 0.95,
-        topK: 40,
-        maxOutputTokens: 4096,
-      },
+      generationConfig: { temperature: 0.8, topP: 0.95, topK: 40, maxOutputTokens: 4096 },
     };
 
     if (systemInstruction) {
-      body.systemInstruction = {
-        parts: [{ text: systemInstruction }],
-      };
+      body.systemInstruction = { parts: [{ text: systemInstruction }] };
     }
 
-    const res = await fetch(ENDPOINT, {
+    const res = await fetch(getEndpoint(currentApiKey), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
@@ -39,20 +31,19 @@ async function callGemini(systemInstruction, contents) {
 
     if (!res.ok) {
       const errBody = await res.text();
+      // Automatic fallback to ALT key on quota exhaustion
+      if (res.status === 429 && !isRetry && altApiKey && currentApiKey !== altApiKey) {
+        console.warn("Primary Gemini key exhausted quota. Falling back to ALT key...");
+        currentApiKey = altApiKey;
+        return callGemini(systemInstruction, contents, true);
+      }
       return { success: false, error: `Gemini API error ${res.status}: ${errBody}` };
     }
 
     const data = await res.json();
-
-    const text = data?.candidates?.[0]?.content?.parts
-      ?.map((p) => p.text)
-      .filter(Boolean)
-      .join('');
-
-    if (!text) {
-      return { success: false, error: 'Gemini returned an empty response.' };
-    }
-
+    const text = data?.candidates?.[0]?.content?.parts?.map((p) => p.text).filter(Boolean).join('');
+    
+    if (!text) return { success: false, error: 'Gemini returned an empty response.' };
     return { success: true, text };
   } catch (err) {
     return { success: false, error: err.message || 'Unknown error calling Gemini.' };
