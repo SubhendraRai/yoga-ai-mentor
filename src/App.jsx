@@ -5,7 +5,7 @@ import Onboarding from './components/Onboarding';
 import Dashboard from './components/Dashboard';
 import WellnessPlan from './components/WellnessPlan';
 import YogaSession from './components/YogaSession';
-import LivePoseCorrection from './components/LivePoseCorrection';
+import MediaPipePose from './components/MediaPipePose';
 import MentorChat from './components/MentorChat';
 import MoodTracker from './components/MoodTracker';
 import Settings from './components/Settings';
@@ -128,7 +128,7 @@ export default function App() {
             />
           )}
           
-          {currentPage === 'pose' && <LivePoseCorrection initialPose={poseCheckPose} />}
+          {currentPage === 'pose' && <MediaPipePose initialPose={poseCheckPose} onExit={() => setCurrentPage('yoga')} />}
           
           {currentPage === 'chat' && <MentorChat />}
           

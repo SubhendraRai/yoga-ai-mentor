@@ -12,86 +12,75 @@ const ANTHROPIC_MODEL = 'claude-3-5-haiku-20241022';
 const getGeminiEndpoint = (key) => `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${key}`;
 const ANTHROPIC_ENDPOINT = '/api/anthropic'; // Rewritten by vite config / vercel
 
+const GROQ_API_KEY = import.meta.env.VITE_GROQ_API_KEY;
+
 /**
- * Low-level call to AI Provider (Anthropic or Gemini).
+ * Low-level call to Groq Llama 3 API (via Vercel Serverless Route or direct fallback).
  */
-async function callAI(systemInstruction, contents, isRetry = false) {
-  // Use Anthropic if key is provided
-  if (anthropicApiKey) {
-    try {
-      // Convert Gemini contents format to Anthropic format
-      const anthropicMessages = contents.map(c => ({
-        role: c.role === 'model' ? 'assistant' : 'user',
-        content: c.parts.map(p => p.text).join('\n')
-      }));
+export async function callAI(systemInstruction, contents) {
+  // Format messages for Groq
+  const messages = contents.map(c => ({
+    role: c.role === 'model' || c.role === 'assistant' ? 'assistant' : 'user',
+    content: c.parts ? c.parts.map(p => p.text).join('\n') : c.content
+  }));
 
-      const body = {
-        model: ANTHROPIC_MODEL,
-        max_tokens: 4096,
-        system: systemInstruction || undefined,
-        messages: anthropicMessages
-      };
-
-      const res = await fetch(ANTHROPIC_ENDPOINT, {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'x-api-key': anthropicApiKey,
-          'anthropic-version': '2023-06-01'
-        },
-        body: JSON.stringify(body),
-      });
-
-      if (!res.ok) {
-        const errBody = await res.text();
-        return { success: false, error: `Anthropic API error ${res.status}: ${errBody}` };
-      }
-
-      const data = await res.json();
-      const text = data?.content?.[0]?.text;
-      
-      if (!text) return { success: false, error: 'Anthropic returned an empty response.' };
-      return { success: true, text };
-    } catch (err) {
-      return { success: false, error: err.message || 'Unknown error calling Anthropic.' };
-    }
-  }
-
-  // Fallback to Gemini
   try {
-    const body = {
-      contents,
-      generationConfig: { temperature: 0.8, topP: 0.95, topK: 40, maxOutputTokens: 4096 },
-    };
-
-    if (systemInstruction) {
-      body.systemInstruction = { parts: [{ text: systemInstruction }] };
-    }
-
-    const res = await fetch(getGeminiEndpoint(currentApiKey), {
+    // 1. Try hitting the server-side API Route (Vercel)
+    // This is more secure as it hides the API key
+    const res = await fetch('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
+      body: JSON.stringify({
+        systemPrompt: systemInstruction,
+        messages: messages
+      })
     });
 
-    if (!res.ok) {
-      const errBody = await res.text();
-      if (res.status === 429 && !isRetry && altApiKey && currentApiKey !== altApiKey) {
-        console.warn("Primary Gemini key exhausted quota. Falling back to ALT key...");
-        currentApiKey = altApiKey;
-        return callAI(systemInstruction, contents, true);
-      }
-      return { success: false, error: `Gemini API error ${res.status}: ${errBody}` };
+    if (res.ok) {
+      const data = await res.json();
+      return { success: true, text: data.text };
     }
-
-    const data = await res.json();
-    const text = data?.candidates?.[0]?.content?.parts?.map((p) => p.text).filter(Boolean).join('');
     
-    if (!text) return { success: false, error: 'Gemini returned an empty response.' };
-    return { success: true, text };
+    // If the API route fails (e.g. running locally via plain Vite dev server),
+    // Fallback to direct client-side Groq call if the key is available
+    console.warn("/api/chat failed, falling back to direct Groq call...", await res.text());
   } catch (err) {
-    return { success: false, error: err.message || 'Unknown error calling Gemini.' };
+    console.warn("/api/chat not reachable, falling back to direct Groq call...");
   }
+
+  // 2. Direct Fallback to Groq API (Local Dev)
+  if (GROQ_API_KEY) {
+    try {
+      const groqMessages = [];
+      if (systemInstruction) groqMessages.push({ role: 'system', content: systemInstruction });
+      groqMessages.push(...messages);
+
+      const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${GROQ_API_KEY}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          model: 'llama-3.3-70b-versatile',
+          messages: groqMessages,
+          temperature: 0.7,
+          max_tokens: 2048
+        })
+      });
+
+      if (!response.ok) {
+        return { success: false, error: `Groq direct API error: ${await response.text()}` };
+      }
+
+      const data = await response.json();
+      return { success: true, text: data.choices[0]?.message?.content || '' };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  }
+
+  return { success: false, error: "AI API Route failed and no local VITE_GROQ_API_KEY found." };
 }
 
 // ─────────────────────────────────────────────────────────────
