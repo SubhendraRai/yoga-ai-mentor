@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { WellnessMemory } from '../lib/wellnessMemory';
+import { playSound } from '../lib/audio';
 import { Play, Pause, SkipForward, SkipBack, Camera, Check } from 'lucide-react';
 
 export default function YogaSession({ session, onComplete, onStartPoseCheck }) {
@@ -22,10 +23,12 @@ export default function YogaSession({ session, onComplete, onStartPoseCheck }) {
 
   const handleNext = useCallback(() => {
     if (currentIndex < poses.length - 1) {
+      playSound.chime();
       setCurrentIndex(prev => prev + 1);
       setTimeLeft(poses[currentIndex + 1].duration * 60);
       setIsPlaying(true);
     } else {
+      playSound.success();
       setIsPlaying(false);
       setIsFinished(true);
       WellnessMemory.logActivity(`yoga_${Date.now()}`, 'Yoga Session', 'Completed guided session', poses.reduce((acc, p) => acc + p.duration, 0));
