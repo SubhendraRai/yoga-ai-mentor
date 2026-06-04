@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { WellnessMemory } from '../lib/wellnessMemory';
-import { analyzeMood } from '../lib/gemini';
+import { analyzeMood } from '../lib/ai';
 import { Check, Sparkles } from 'lucide-react';
 
 export default function MoodTracker({ onMoodLogged, compact = false }) {

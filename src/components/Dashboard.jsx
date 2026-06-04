@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { WellnessMemory } from '../lib/wellnessMemory';
-import { generateWellnessPlan, generateMorningGreeting } from '../lib/gemini';
+import { generateWellnessPlan, generateMorningGreeting } from '../lib/ai';
 import WellnessScore from './WellnessScore';
 import MoodTracker from './MoodTracker';
 import WellnessPlan from './WellnessPlan';

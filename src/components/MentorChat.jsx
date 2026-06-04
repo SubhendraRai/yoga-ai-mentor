@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { WellnessMemory } from '../lib/wellnessMemory';
-import { chatWithMentor } from '../lib/gemini';
+import { chatWithMentor } from '../lib/ai';
 import { Send, Trash2, Compass } from 'lucide-react';
 
 export default function MentorChat() {

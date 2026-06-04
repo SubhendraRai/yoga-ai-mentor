@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { WellnessMemory } from '../lib/wellnessMemory';
 import { Play, Pause, SkipForward, SkipBack, Camera, Check } from 'lucide-react';
 
@@ -20,6 +20,18 @@ export default function YogaSession({ session, onComplete, onStartPoseCheck }) {
   const timerRef = useRef(null);
   const currentPose = poses[currentIndex];
 
+  const handleNext = useCallback(() => {
+    if (currentIndex < poses.length - 1) {
+      setCurrentIndex(prev => prev + 1);
+      setTimeLeft(poses[currentIndex + 1].duration * 60);
+      setIsPlaying(true);
+    } else {
+      setIsPlaying(false);
+      setIsFinished(true);
+      WellnessMemory.logActivity(`yoga_${Date.now()}`, 'Yoga Session', 'Completed guided session', poses.reduce((acc, p) => acc + p.duration, 0));
+    }
+  }, [currentIndex, poses]);
+
   useEffect(() => {
     if (isPlaying && timeLeft > 0) {
       timerRef.current = setInterval(() => {
@@ -30,21 +42,9 @@ export default function YogaSession({ session, onComplete, onStartPoseCheck }) {
     }
     
     return () => clearInterval(timerRef.current);
-  }, [isPlaying, timeLeft]);
+  }, [isPlaying, timeLeft, handleNext]);
 
   const handlePlayPause = () => setIsPlaying(!isPlaying);
-
-  const handleNext = () => {
-    if (currentIndex < poses.length - 1) {
-      setCurrentIndex(prev => prev + 1);
-      setTimeLeft(poses[currentIndex + 1].duration * 60);
-      setIsPlaying(true);
-    } else {
-      setIsPlaying(false);
-      setIsFinished(true);
-      WellnessMemory.logActivity(`yoga_${Date.now()}`, 'Yoga Session', 'Completed guided session', poses.reduce((acc, p) => acc + p.duration, 0));
-    }
-  };
 
   const handlePrev = () => {
     if (currentIndex > 0) {

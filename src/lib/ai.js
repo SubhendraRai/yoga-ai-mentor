@@ -5,14 +5,59 @@
 
 let currentApiKey = import.meta.env.VITE_GEMINI_API_KEY;
 const altApiKey = import.meta.env.VITE_GEMINI_API_KEY_ALT;
+const anthropicApiKey = import.meta.env.VITE_ANTHROPIC_API_KEY;
 const MODEL = 'gemini-2.0-flash';
+const ANTHROPIC_MODEL = 'claude-3-5-haiku-20241022';
 
-const getEndpoint = (key) => `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${key}`;
+const getGeminiEndpoint = (key) => `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${key}`;
+const ANTHROPIC_ENDPOINT = '/api/anthropic'; // Rewritten by vite config / vercel
 
 /**
- * Low-level call to Gemini generateContent.
+ * Low-level call to AI Provider (Anthropic or Gemini).
  */
-async function callGemini(systemInstruction, contents, isRetry = false) {
+async function callAI(systemInstruction, contents, isRetry = false) {
+  // Use Anthropic if key is provided
+  if (anthropicApiKey) {
+    try {
+      // Convert Gemini contents format to Anthropic format
+      const anthropicMessages = contents.map(c => ({
+        role: c.role === 'model' ? 'assistant' : 'user',
+        content: c.parts.map(p => p.text).join('\n')
+      }));
+
+      const body = {
+        model: ANTHROPIC_MODEL,
+        max_tokens: 4096,
+        system: systemInstruction || undefined,
+        messages: anthropicMessages
+      };
+
+      const res = await fetch(ANTHROPIC_ENDPOINT, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-api-key': anthropicApiKey,
+          'anthropic-version': '2023-06-01'
+        },
+        body: JSON.stringify(body),
+      });
+
+      if (!res.ok) {
+        const errBody = await res.text();
+        return { success: false, error: `Anthropic API error ${res.status}: ${errBody}` };
+      }
+
+      const data = await res.json();
+      const text = data?.content?.[0]?.text;
+      
+      if (!text) return { success: false, error: 'Anthropic returned an empty response.' };
+      return { success: true, text };
+    } catch (err) {
+      return { success: false, error: err.message || 'Unknown error calling Anthropic.' };
+    }
+  }
+
+  // Fallback to Gemini
   try {
     const body = {
       contents,
@@ -23,7 +68,7 @@ async function callGemini(systemInstruction, contents, isRetry = false) {
       body.systemInstruction = { parts: [{ text: systemInstruction }] };
     }
 
-    const res = await fetch(getEndpoint(currentApiKey), {
+    const res = await fetch(getGeminiEndpoint(currentApiKey), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
@@ -31,11 +76,10 @@ async function callGemini(systemInstruction, contents, isRetry = false) {
 
     if (!res.ok) {
       const errBody = await res.text();
-      // Automatic fallback to ALT key on quota exhaustion
       if (res.status === 429 && !isRetry && altApiKey && currentApiKey !== altApiKey) {
         console.warn("Primary Gemini key exhausted quota. Falling back to ALT key...");
         currentApiKey = altApiKey;
-        return callGemini(systemInstruction, contents, true);
+        return callAI(systemInstruction, contents, true);
       }
       return { success: false, error: `Gemini API error ${res.status}: ${errBody}` };
     }
@@ -93,7 +137,7 @@ Brief overview of suggested focus areas for the coming days based on their trend
 
 Make everything feel personal, warm, and encouraging. Reference their specific data.`;
 
-  return callGemini(system, [{ role: 'user', parts: [{ text: prompt }] }]);
+  return callAI(system, [{ role: 'user', parts: [{ text: prompt }] }]);
 }
 
 /**
@@ -108,7 +152,7 @@ ${userContext}
 
 Generate a warm, personalized morning greeting for today. Reference their name, recent mood, sleep quality, streak, or today's focus. Keep it concise — 2-3 sentences only. Make them feel seen and motivated.`;
 
-  return callGemini(system, [{ role: 'user', parts: [{ text: prompt }] }]);
+  return callAI(system, [{ role: 'user', parts: [{ text: prompt }] }]);
 }
 
 /**
@@ -129,7 +173,7 @@ ${moodData}
 
 Provide a brief insight (2-4 sentences) about patterns you notice. For example, correlations between mood and activities, sleep, or time of week. Offer one gentle suggestion.`;
 
-  return callGemini(system, [{ role: 'user', parts: [{ text: prompt }] }]);
+  return callAI(system, [{ role: 'user', parts: [{ text: prompt }] }]);
 }
 
 /**
@@ -166,7 +210,7 @@ When to inhale/exhale during transitions.
 
 Tailor difficulty to their experience level. If they have health conditions, provide appropriate modifications.`;
 
-  return callGemini(system, [{ role: 'user', parts: [{ text: prompt }] }]);
+  return callAI(system, [{ role: 'user', parts: [{ text: prompt }] }]);
 }
 
 /**
@@ -208,7 +252,7 @@ Guidelines:
     parts: [{ text: userMessage }],
   });
 
-  return callGemini(system, contents);
+  return callAI(system, contents);
 }
 
 /**
@@ -241,5 +285,5 @@ A high-level overview of what their first week will look like. Day-by-day is not
 
 Make them feel excited and supported. This is the start of a meaningful journey.`;
 
-  return callGemini(system, [{ role: 'user', parts: [{ text: prompt }] }]);
+  return callAI(system, [{ role: 'user', parts: [{ text: prompt }] }]);
 }

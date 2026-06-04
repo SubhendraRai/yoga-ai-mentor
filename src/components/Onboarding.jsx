@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { WellnessMemory } from '../lib/wellnessMemory';
-import { generateOnboardingProfile } from '../lib/gemini';
+import { generateOnboardingProfile } from '../lib/ai';
 import { ChevronRight, ChevronLeft, Check } from 'lucide-react';
 
 export default function Onboarding({ user, onComplete }) {
