@@ -140,7 +140,7 @@ export default function Auth({ onLoginSuccess }) {
 
       <div className="brand" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: 32 }}>
         <Compass className="spinner-slow" size={20} style={{ color: "var(--accent-gold)" }} />
-        <span>Yoga AI Mentor</span>
+        <span>Yogtatva</span>
       </div>
 
       <h1 className="hero-title">

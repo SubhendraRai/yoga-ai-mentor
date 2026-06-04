@@ -1,7 +1,6 @@
 <div align="center">
   <img src="public/icons.svg" alt="Logo" width="80" height="80">
-  <h1 align="center">Yoga AI Mentor</h1>
-
+  <h1 align="center">Yogtatva</h1>
   <p align="center">
     A persistent, intelligent wellness operating system powered by Gemini 2.0 Flash.
     <br />
@@ -18,7 +17,7 @@
 
 ## 🧘‍♂️ Vision
 
-The **Yoga AI Mentor** isn't just another fitness tracker or chatbot. It's a lifelong personal mentor for physical health, mental wellness, and habit formation. 
+**Yogtatva** isn't just another fitness tracker or chatbot. It's a lifelong personal mentor for physical health, mental wellness, and habit formation. 
 
 Unlike traditional apps that offer static, one-size-fits-all routines, this platform acts as an intelligent operating system that **learns from your behavior, preferences, schedule, and progress.** Over time, it weaves your data into highly personalized daily routines and real-time posture corrections.
 

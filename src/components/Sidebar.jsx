@@ -21,7 +21,7 @@ export default function Sidebar({ currentPage, onNavigate, user, onLogout, colla
     <aside className={`sidebar ${collapsed ? 'collapsed' : ''}`}>
       <div className="sidebar-brand">
         <Compass size={20} />
-        {!collapsed && <span>Yoga AI Mentor</span>}
+        {!collapsed && <span>Yogtatva</span>}
       </div>
 
       <button className="sidebar-toggle" onClick={onToggleCollapse} title="Toggle Sidebar">
