@@ -102,35 +102,72 @@ export default function App() {
   }
 
   // Fully authenticated and onboarded - Main Layout
+  
+  // Icons for mobile menu
+  const mobileNavItems = [
+    { id: 'dashboard', label: 'Dashboard' },
+    { id: 'plan', label: "Today's Plan" },
+    { id: 'yoga', label: 'Yoga Session' },
+    { id: 'pose', label: 'Live Pose Check' },
+    { id: 'chat', label: 'Talk to Mentor' },
+    { id: 'mood', label: 'Mood & Journal' },
+  ];
+
   return (
     <div className="app-layout">
-      {/* Mobile Header */}
-      <div className="mobile-header" style={{ display: 'none' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--accent-gold)', fontFamily: "'Cormorant Garamond', serif", fontSize: '18px', fontWeight: 500 }}>
-          <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%234A5D4E' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolygon points='16.39 21 21 16.39 21 7.61 16.39 3 7.61 3 3 7.61 3 16.39 7.61 21 16.39 21'%3E%3C/polygon%3E%3Cpath d='m16.71 13.88-3.41 3.41a2 2 0 0 1-2.82 0l-3.41-3.41'%3E%3C/path%3E%3C/svg%3E" alt="Logo" /> Yogtatva
-        </div>
-        <button className="btn-icon" onClick={() => setMobileMenuOpen(true)} style={{ border: 'none' }}>
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="18" y2="18"/></svg>
-        </button>
-      </div>
-
+      {/* Desktop Sidebar (hidden on mobile via CSS) */}
       <Sidebar 
         currentPage={currentPage}
-        onNavigate={(page) => { setCurrentPage(page); setMobileMenuOpen(false); }}
+        onNavigate={setCurrentPage}
         user={currentUser}
         onLogout={handleLogout}
         collapsed={sidebarCollapsed}
         onToggleCollapse={handleToggleSidebar}
-        mobileOpen={mobileMenuOpen}
-        onCloseMobile={() => setMobileMenuOpen(false)}
       />
       
-      {mobileMenuOpen && (
-        <div 
-          style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', zIndex: 999 }} 
-          onClick={() => setMobileMenuOpen(false)} 
-        />
-      )}
+      {/* Mobile FAB (hidden on desktop via CSS) */}
+      <button 
+        className="mobile-fab" 
+        style={{ display: 'none' }} // default hidden, overridden by media query
+        onClick={() => setMobileMenuOpen(true)}
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+      </button>
+
+      {/* Mobile Overlay Menu */}
+      <div className={`mobile-overlay-menu ${mobileMenuOpen ? 'open' : ''}`}>
+        <div style={{ position: 'absolute', top: '32px', right: '32px' }}>
+          <button className="btn-icon" onClick={() => setMobileMenuOpen(false)} style={{ border: 'none' }}>
+            <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+          </button>
+        </div>
+        
+        <div style={{ marginBottom: '48px', color: 'var(--accent-gold)', fontFamily: "'Cormorant Garamond', serif", fontSize: '28px' }}>
+          Yogtatva
+        </div>
+
+        <div className="mobile-nav-items">
+          {mobileNavItems.map(item => (
+            <button 
+              key={item.id} 
+              className={`mobile-nav-item ${currentPage === item.id ? 'active' : ''}`}
+              onClick={() => {
+                setCurrentPage(item.id);
+                setMobileMenuOpen(false);
+              }}
+            >
+              {item.label}
+            </button>
+          ))}
+          <button 
+            className="mobile-nav-item" 
+            style={{ color: 'var(--error-color)', marginTop: '24px' }}
+            onClick={handleLogout}
+          >
+            Logout
+          </button>
+        </div>
+      </div>
 
       <main className="main-content" style={{ marginLeft: sidebarCollapsed ? '60px' : '240px' }}>
         <div className="main-content-inner">
