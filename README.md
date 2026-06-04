@@ -1,106 +1,113 @@
 <div align="center">
-  <img src="public/icons.svg" alt="Logo" width="80" height="80">
-  <h1 align="center">Yogtatva</h1>
-  <p align="center">
-    A persistent, intelligent wellness operating system 
-    <br />
-    <br />
-    <a href="#features">Features</a>
-    ·
-    <a href="#tech-stack">Tech Stack</a>
-    ·
-    <a href="#getting-started">Getting Started</a>
+  <img src="https://img.shields.io/badge/Status-Live-success?style=for-the-badge" alt="Status Badge"/>
+  <h1>🧘‍♀️ Yogtatva</h1>
+  <p><strong>Your Intelligent, Personalized AI Wellness Mentor</strong></p>
+  <p>
+    An advanced web application that combines artificial intelligence, long-term memory, and computer vision to guide you through your daily wellness and yoga routines.
   </p>
+  <br/>
 </div>
-
----
-
-## 🧘‍♂️ Vision
-
-**Yogtatva** isn't just another fitness tracker or chatbot. It's a lifelong personal mentor for physical health, mental wellness, and habit formation. 
-
-Unlike traditional apps that offer static, one-size-fits-all routines, this platform acts as an intelligent operating system that **learns from your behavior, preferences, schedule, and progress.** Over time, it weaves your data into highly personalized daily routines and real-time posture corrections.
 
 ## ✨ Features
 
-- **🧠 Persistent AI Memory Engine**: 
-  The core of the application. It securely logs your moods, sleep quality, and completed activities, feeding them into a context engine. Every time you interact with the mentor, it remembers your history.
-  
-- **🎥 Live Multimodal Posture Correction**: 
-  Using the experimental *Gemini Multimodal Live API* via WebSockets, the app streams your camera feed securely and provides real-time, low-latency vocal/text feedback on your yoga alignment (e.g. *"Extend your arms wider into Warrior II"*).
+- 🧠 **AI Wellness Mentor (Powered by Groq & Llama 3)**
+  - Chat in real-time with an intelligent wellness guide.
+  - Generates personalized daily routines based on your goals, time, and stress levels.
 
-- **🌅 Dynamic Wellness Dashboard**:
-  A personalized hub featuring your overall "Wellness Score" (calculated from sleep, mood, and activity streaks), an interactive mood tracker, and an AI-generated daily plan tailored to your available time and current stress levels.
+- 💾 **Long-Term AI Memory (Supabase)**
+  - Yogtatva remembers you. Every time you mention an injury, a preference, or a goal in chat, it seamlessly extracts and saves that memory to its cloud database. 
+  - Future AI responses dynamically adapt to your unique physical and mental context.
 
-- **💬 Conversational Mentor**:
-  A chat interface connected directly to your persistent context. You can ask for advice, report injuries (e.g. "my lower back hurts today"), and the AI will remember it for all future session generations.
+- 📸 **Live Posture Detection (MediaPipe)**
+  - Uses your device's camera locally in the browser to analyze your yoga poses in real-time.
+  - Draws interactive skeleton tracking overlays directly on your video feed.
 
-- **☁️ Cloud Sync via Supabase**:
-  Your entire profile, memory logs, and AI observations are securely synchronized across devices using Supabase Authentication and PostgreSQL.
+- 🎨 **Premium Aesthetic UI**
+  - Luxurious "Sage Green & Cream" theme designed for calmness.
+  - Fully mobile-responsive layout featuring a sleek Floating Action Button (FAB) and frosted-glass overlay menus for mobile users.
 
-## 🛠️ Tech Stack
+- 🎵 **Synthetic UI Audio**
+  - Custom Web Audio API synthesizers provide gentle acoustic feedback (pops and chimes) during chats and yoga sessions without the heavy bloat of MP3 files.
 
-This project is built with modern, high-performance web technologies:
+## 🚀 Tech Stack
 
-- **Frontend**: React.js, Vite
-- **Styling**: Vanilla CSS (Custom Luxury Dark/Gold Aesthetic)
-- **AI Models**: Google Gemini 2.0 Flash (REST API & WebSockets)
-- **Database & Auth**: Supabase (PostgreSQL)
-- **Analytics**: PostHog
-- **Icons**: Lucide React
+| Category | Technology |
+|---|---|
+| **Frontend** | React (Vite), JavaScript, Vanilla CSS |
+| **Backend / Database** | Supabase (PostgreSQL, Row Level Security) |
+| **AI Processing** | Groq (Llama 3 8B/70B) |
+| **Computer Vision** | Google MediaPipe Pose |
+| **Deployment** | Vercel |
 
-## 🚀 Getting Started
-
-Follow these instructions to get a copy of the project up and running on your local machine.
-
-### Prerequisites
-
-You will need Node.js installed on your machine, along with accounts for the following services:
-- [Google AI Studio](https://aistudio.google.com/) (For the Gemini API Key)
-- [Supabase](https://supabase.com/) (For Auth and Database)
-- [PostHog](https://posthog.com/) (For Analytics - Optional)
-
-### Installation
+## 🛠️ Local Setup
 
 1. **Clone the repository**
-   ```sh
+   ```bash
    git clone https://github.com/SubhendraRai/yoga-ai-mentor.git
    cd yoga-ai-mentor
    ```
 
-2. **Install NPM packages**
-   ```sh
+2. **Install dependencies**
+   ```bash
    npm install
    ```
 
-3. **Set up Environment Variables**
-   Create a `.env.local` file in the root directory and add your keys:
+3. **Configure Environment Variables**
+   Create a `.env.local` file in the root directory and add:
    ```env
-   VITE_GEMINI_API_KEY=your_gemini_api_key_here
-   
-   VITE_SUPABASE_URL=your_supabase_url_here
-   VITE_SUPABASE_ANON_KEY=your_supabase_anon_key_here
-   
-   VITE_POSTHOG_KEY=your_posthog_key_here
-   VITE_POSTHOG_HOST=https://us.i.posthog.com
+   VITE_SUPABASE_URL=your_supabase_url
+   VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+   VITE_GROQ_API_KEY=your_groq_api_key
    ```
 
-4. **Initialize Supabase Tables**
-   Run the SQL script provided in the `/docs` or implementation plan inside your Supabase SQL Editor to generate the necessary `profiles`, `ai_observations`, and `wellness_logs` tables.
-
-5. **Start the Development Server**
-   ```sh
+4. **Run the development server**
+   ```bash
    npm run dev
    ```
+   Open `http://localhost:5173` to view it in your browser.
 
-## 🔒 Privacy & Data
+## 🗄️ Database Schema
 
-User data privacy is a core architectural principle. 
-- Camera feeds for live pose correction are streamed securely via WebSockets directly to the Gemini endpoint and are **never** stored on any database.
-- AI memory contexts are strictly tied to the authenticated user's `uuid` via Supabase Row Level Security (RLS) policies.
+Yogtatva relies on Supabase for Auth and Memory. You will need to execute the following SQL in your Supabase SQL Editor:
 
----
+```sql
+CREATE TABLE chat_history (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES auth.users(id) NOT NULL,
+  role TEXT NOT NULL CHECK (role IN ('user', 'model', 'system')),
+  content TEXT NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
 
-<p align="center">
-  Built with ❤️ for a balanced mind and body.
-</p>
+CREATE TABLE memories (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES auth.users(id) NOT NULL,
+  memory TEXT NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+CREATE TABLE profiles (
+  id UUID REFERENCES auth.users(id) PRIMARY KEY,
+  name TEXT,
+  age INTEGER,
+  goals TEXT[],
+  fitness_level TEXT,
+  schedule JSONB,
+  ai_profile_summary TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- Enable RLS
+ALTER TABLE chat_history ENABLE ROW LEVEL SECURITY;
+ALTER TABLE memories ENABLE ROW LEVEL SECURITY;
+ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
+
+-- Create Policies
+CREATE POLICY "Users can manage their own chat history" ON chat_history FOR ALL USING (auth.uid() = user_id);
+CREATE POLICY "Users can manage their own memories" ON memories FOR ALL USING (auth.uid() = user_id);
+CREATE POLICY "Users can manage their own profile" ON profiles FOR ALL USING (auth.uid() = id);
+```
+
+## 📜 License
+
+This project is licensed under the MIT License.
