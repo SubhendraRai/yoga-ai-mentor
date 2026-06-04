@@ -1,12 +1,14 @@
 import { useState, useEffect, useRef } from 'react';
 import { WellnessMemory } from '../lib/wellnessMemory';
 import { chatWithMentor } from '../lib/ai';
+import { getChatHistory, saveChatMessage, getUserMemories, extractAndSaveMemories } from '../lib/supabaseMemory';
 import { Send, Trash2, Compass } from 'lucide-react';
 
-export default function MentorChat() {
+export default function MentorChat({ currentUser }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [userMemories, setUserMemories] = useState('');
   const messagesEndRef = useRef(null);
 
   const suggestionChips = [
@@ -18,21 +20,30 @@ export default function MentorChat() {
   ];
 
   useEffect(() => {
-    // Load chat history from memory
-    const history = WellnessMemory.getConversation();
-    if (history && history.length > 0) {
-      setMessages(history);
-    } else {
-      // Initial greeting if empty
-      const initialMessage = {
-        role: 'mentor',
-        text: `Hello ${WellnessMemory.getProfile()?.name || 'there'}. I'm your AI Wellness Mentor. I remember your goals and adapt to your progress. How can I support you today?`,
-        timestamp: Date.now()
-      };
-      setMessages([initialMessage]);
-      WellnessMemory.saveConversation([initialMessage]);
+    async function loadData() {
+      if (!currentUser?.id) return;
+      
+      // Load long-term memories
+      const memories = await getUserMemories(currentUser.id);
+      setUserMemories(memories);
+      
+      // Load chat history from Supabase
+      const history = await getChatHistory(currentUser.id);
+      if (history && history.length > 0) {
+        setMessages(history);
+      } else {
+        // Initial greeting if empty
+        const initialMessage = {
+          role: 'mentor',
+          text: `Hello ${currentUser.name || 'there'}. I'm your AI Wellness Mentor. I remember your goals and adapt to your progress. How can I support you today?`,
+          timestamp: Date.now()
+        };
+        setMessages([initialMessage]);
+        await saveChatMessage(currentUser.id, 'model', initialMessage.text);
+      }
     }
-  }, []);
+    loadData();
+  }, [currentUser]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -48,16 +59,27 @@ export default function MentorChat() {
     setMessages(updatedMessages);
     setInput('');
     setIsLoading(true);
+    
+    // Save user message to Supabase
+    if (currentUser?.id) {
+      await saveChatMessage(currentUser.id, 'user', text.trim());
+      // Extract memory in background
+      extractAndSaveMemories(currentUser.id, text.trim());
+    }
 
     try {
-      const context = WellnessMemory.getContextForAI();
-      const response = await chatWithMentor(context, updatedMessages, text.trim());
+      const baseContext = WellnessMemory.getContextForAI();
+      // Inject Supabase memories into the context
+      const fullContext = `${baseContext}\n\nImportant User Memories:\n${userMemories || 'None yet.'}`;
+      
+      const response = await chatWithMentor(fullContext, updatedMessages, text.trim());
       
       if (response.success) {
         const mentorMsg = { role: 'mentor', text: response.text, timestamp: Date.now() };
-        const finalMessages = [...updatedMessages, mentorMsg];
-        setMessages(finalMessages);
-        WellnessMemory.saveConversation(finalMessages);
+        setMessages([...updatedMessages, mentorMsg]);
+        if (currentUser?.id) {
+          await saveChatMessage(currentUser.id, 'model', response.text);
+        }
       } else {
         const errorMsg = { role: 'mentor', text: "I'm having trouble connecting right now. Let's try again in a moment.", timestamp: Date.now(), isError: true };
         setMessages([...updatedMessages, errorMsg]);
@@ -70,14 +92,13 @@ export default function MentorChat() {
   };
 
   const clearChat = () => {
-    WellnessMemory.saveConversation([]);
+    // We don't delete from Supabase to preserve data, but we reset the UI
     const initialMessage = {
       role: 'mentor',
-      text: "Memory cleared for this conversation. What's on your mind?",
+      text: "Chat window cleared. What's on your mind?",
       timestamp: Date.now()
     };
     setMessages([initialMessage]);
-    WellnessMemory.saveConversation([initialMessage]);
   };
 
   return (

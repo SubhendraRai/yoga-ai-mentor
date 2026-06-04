@@ -130,7 +130,7 @@ export default function App() {
           
           {currentPage === 'pose' && <MediaPipePose initialPose={poseCheckPose} onExit={() => setCurrentPage('yoga')} />}
           
-          {currentPage === 'chat' && <MentorChat />}
+          {currentPage === 'chat' && <MentorChat currentUser={currentUser} />}
           
           {currentPage === 'mood' && (
             <div style={{ padding: '40px 0' }}>
