@@ -22,8 +22,10 @@ export default function App() {
 
   useEffect(() => {
     // Check initial auth state
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (session?.user) {
+        // Await sync BEFORE showing the app to ensure onboarding flag is set
+        await WellnessMemory.syncFromCloud();
         setCurrentUser({
           id: session.user.id,
           email: session.user.email,
@@ -36,13 +38,14 @@ export default function App() {
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (session?.user) {
+        setLoading(true);
+        await WellnessMemory.syncFromCloud();
         setCurrentUser({
           id: session.user.id,
           email: session.user.email,
           name: session.user.user_metadata?.name || 'User',
         });
-        // Sync down cloud memory for this user
-        await WellnessMemory.syncFromCloud();
+        setLoading(false);
       } else {
         setCurrentUser(null);
       }
@@ -57,10 +60,11 @@ export default function App() {
     return () => subscription.unsubscribe();
   }, []);
 
-  const handleLoginSuccess = (user) => {
+  const handleLoginSuccess = async (user) => {
+    setLoading(true);
+    await WellnessMemory.syncFromCloud();
     setCurrentUser(user);
-    // Note: We don't need to force navigation here. The render logic
-    // will automatically show Onboarding if needed, or Dashboard.
+    setLoading(false);
   };
 
   const handleLogout = async () => {

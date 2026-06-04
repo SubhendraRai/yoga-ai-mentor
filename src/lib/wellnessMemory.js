@@ -357,9 +357,16 @@ export const WellnessMemory = {
     if (!userId) return;
 
     try {
-      // 1. Fetch Profile
-      const { data: profile } = await supabase.from('profiles').select('*').eq('id', userId).single();
-      if (profile) {
+      // Execute all 3 fetches concurrently to speed up login time
+      const [profileRes, obsRes, logsRes] = await Promise.allSettled([
+        supabase.from('profiles').select('*').eq('id', userId).single(),
+        supabase.from('ai_observations').select('*').eq('user_id', userId).order('created_at', { ascending: true }).limit(100),
+        supabase.from('wellness_logs').select('*').eq('user_id', userId).order('created_at', { ascending: true }).limit(200)
+      ]);
+
+      // 1. Process Profile
+      if (profileRes.status === 'fulfilled' && profileRes.value.data) {
+        const profile = profileRes.value.data;
         localStorage.setItem('wellness_profile', JSON.stringify({
           name: profile.name,
           age: profile.age,
@@ -376,28 +383,17 @@ export const WellnessMemory = {
         localStorage.setItem('wellness_onboarding_complete', 'true');
       }
 
-      // 2. Fetch AI Observations (Memory)
-      const { data: observations } = await supabase.from('ai_observations')
-        .select('*')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: true })
-        .limit(100);
-      
-      if (observations) {
-        const obsLocal = observations.map(o => ({ id: o.id, text: o.observation, timestamp: o.created_at }));
+      // 2. Process Observations
+      if (obsRes.status === 'fulfilled' && obsRes.value.data) {
+        const obsLocal = obsRes.value.data.map(o => ({ id: o.id, text: o.observation, timestamp: o.created_at }));
         localStorage.setItem('wellness_observations', JSON.stringify(obsLocal));
       }
 
-      // 3. Fetch Wellness Logs (Mood/Sleep)
-      const { data: logs } = await supabase.from('wellness_logs')
-        .select('*')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: true })
-        .limit(200);
-
-      if (logs) {
+      // 3. Process Wellness Logs
+      if (logsRes.status === 'fulfilled' && logsRes.value.data) {
+        const logs = logsRes.value.data;
         const moods = logs.filter(l => l.log_type === 'mood').map(l => ({ id: l.id, level: l.value, note: l.note, timestamp: l.created_at }));
-        const sleeps = logs.filter(l => l.log_type === 'sleep').map(l => ({ id: l.id, hours: l.value, quality: parseInt(l.note.replace(/\D/g, '')), timestamp: l.created_at }));
+        const sleeps = logs.filter(l => l.log_type === 'sleep').map(l => ({ id: l.id, hours: l.value, quality: parseInt(l.note.replace(/\\D/g, '')), timestamp: l.created_at }));
         
         localStorage.setItem('wellness_mood', JSON.stringify(moods));
         localStorage.setItem('wellness_sleep', JSON.stringify(sleeps));
