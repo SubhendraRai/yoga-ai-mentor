@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { WellnessMemory } from '../lib/wellnessMemory';
 import { chatWithMentor } from '../lib/ai';
 import { getChatHistory, saveChatMessage, getUserMemories, extractAndSaveMemories } from '../lib/supabaseMemory';
+import { playSound } from '../lib/audio';
 import { Send, Trash2, Compass } from 'lucide-react';
 
 export default function MentorChat({ currentUser }) {
@@ -23,16 +24,13 @@ export default function MentorChat({ currentUser }) {
     async function loadData() {
       if (!currentUser?.id) return;
       
-      // Load long-term memories
       const memories = await getUserMemories(currentUser.id);
       setUserMemories(memories);
       
-      // Load chat history from Supabase
       const history = await getChatHistory(currentUser.id);
       if (history && history.length > 0) {
         setMessages(history);
       } else {
-        // Initial greeting if empty
         const initialMessage = {
           role: 'mentor',
           text: `Hello ${currentUser.name || 'there'}. I'm your AI Wellness Mentor. I remember your goals and adapt to your progress. How can I support you today?`,
@@ -53,6 +51,8 @@ export default function MentorChat({ currentUser }) {
     const text = textToSend || input;
     if (!text.trim()) return;
 
+    playSound.pop(); // Sound effect when user sends
+
     const userMsg = { role: 'user', text: text.trim(), timestamp: Date.now() };
     const updatedMessages = [...messages, userMsg];
     
@@ -60,32 +60,32 @@ export default function MentorChat({ currentUser }) {
     setInput('');
     setIsLoading(true);
     
-    // Save user message to Supabase
     if (currentUser?.id) {
       await saveChatMessage(currentUser.id, 'user', text.trim());
-      // Extract memory in background
       extractAndSaveMemories(currentUser.id, text.trim());
     }
 
     try {
       const baseContext = WellnessMemory.getContextForAI();
-      // Inject Supabase memories into the context
       const fullContext = `${baseContext}\n\nImportant User Memories:\n${userMemories || 'None yet.'}`;
       
       const response = await chatWithMentor(fullContext, updatedMessages, text.trim());
       
       if (response.success) {
+        playSound.chime(); // Sound effect when AI replies
         const mentorMsg = { role: 'mentor', text: response.text, timestamp: Date.now() };
         setMessages([...updatedMessages, mentorMsg]);
         if (currentUser?.id) {
           await saveChatMessage(currentUser.id, 'model', response.text);
         }
       } else {
+        playSound.error();
         const errorMsg = { role: 'mentor', text: "I'm having trouble connecting right now. Let's try again in a moment.", timestamp: Date.now(), isError: true };
         setMessages([...updatedMessages, errorMsg]);
       }
     } catch (e) {
       console.error("Chat error:", e);
+      playSound.error();
     } finally {
       setIsLoading(false);
     }
