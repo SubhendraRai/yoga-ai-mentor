@@ -2,7 +2,7 @@
   <img src="public/icons.svg" alt="Logo" width="80" height="80">
   <h1 align="center">Yogtatva</h1>
   <p align="center">
-    A persistent, intelligent wellness operating system powered by Gemini 2.0 Flash.
+    A persistent, intelligent wellness operating system 
     <br />
     <br />
     <a href="#features">Features</a>
