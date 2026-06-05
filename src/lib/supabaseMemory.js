@@ -32,8 +32,8 @@ export async function getChatHistory(userId, limit = 20) {
   }
   
   return data.reverse().map(msg => ({
-    role: msg.role === 'model' ? 'assistant' : msg.role,
-    content: msg.content
+    role: msg.role === 'model' ? 'mentor' : msg.role,
+    text: msg.content
   }));
 }
 
