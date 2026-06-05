@@ -14,6 +14,12 @@ export const WellnessMemory = {
   
   // Current user
   getUserId: async () => {
+    // Check if guest
+    try {
+      const localUser = JSON.parse(localStorage.getItem("yoga_current_user"));
+      if (localUser && localUser.id === 'guest') return 'guest';
+    } catch (e) {}
+
     const { data } = await supabase.auth.getSession();
     return data?.session?.user?.id;
   },
@@ -32,8 +38,8 @@ export const WellnessMemory = {
     
     // Cloud Sync
     const userId = await WellnessMemory.getUserId();
-    if (userId) {
-      await supabase.from('profiles').upsert({
+    if (userId && userId !== 'guest') {
+      const { error } = await supabase.from('profiles').upsert({
         id: userId,
         name: updated.name,
         age: parseInt(updated.age) || null,
@@ -49,6 +55,9 @@ export const WellnessMemory = {
         },
         ai_profile_summary: updated.aiAssessment || null
       });
+      if (error) {
+        console.error("Supabase Profile Upsert Error:", error);
+      }
     }
     return updated;
   },
@@ -73,7 +82,7 @@ export const WellnessMemory = {
 
     // Cloud Sync
     const userId = await WellnessMemory.getUserId();
-    if (userId) {
+    if (userId && userId !== 'guest') {
       await supabase.from('wellness_logs').insert({
         user_id: userId,
         log_type: 'mood',
@@ -107,7 +116,7 @@ export const WellnessMemory = {
 
     // Cloud Sync
     const userId = await WellnessMemory.getUserId();
-    if (userId) {
+    if (userId && userId !== 'guest') {
       await supabase.from('wellness_logs').insert({
         user_id: userId,
         log_type: 'sleep',
@@ -136,9 +145,13 @@ export const WellnessMemory = {
 
     // Cloud Sync
     const userId = await WellnessMemory.getUserId();
-    if (userId) {
-      // Assuming you create an activities table later, or just log to wellness_logs for now
-      // For now we'll just keep it in localStorage to avoid complex table creation
+    if (userId && userId !== 'guest') {
+      await supabase.from('wellness_logs').insert({
+        user_id: userId,
+        log_type: 'activity',
+        value: duration,
+        note: `Pose: ${name}`
+      });
     }
   },
 
@@ -206,7 +219,7 @@ export const WellnessMemory = {
 
     // Cloud Sync
     const userId = await WellnessMemory.getUserId();
-    if (userId) {
+    if (userId && userId !== 'guest') {
       await supabase.from('ai_observations').insert({
         user_id: userId,
         observation: text
@@ -354,7 +367,7 @@ export const WellnessMemory = {
   // ------------------------------------------------------------------------
   syncFromCloud: async () => {
     const userId = await WellnessMemory.getUserId();
-    if (!userId) return;
+    if (!userId || userId === 'guest') return;
 
     try {
       // Execute all 3 fetches concurrently to speed up login time
@@ -389,14 +402,50 @@ export const WellnessMemory = {
         localStorage.setItem('wellness_observations', JSON.stringify(obsLocal));
       }
 
-      // 3. Process Wellness Logs
+      // 3. Process Wellness Logs and Merge
       if (logsRes.status === 'fulfilled' && logsRes.value.data) {
         const logs = logsRes.value.data;
-        const moods = logs.filter(l => l.log_type === 'mood').map(l => ({ id: l.id, level: l.value, note: l.note, timestamp: l.created_at }));
-        const sleeps = logs.filter(l => l.log_type === 'sleep').map(l => ({ id: l.id, hours: l.value, quality: parseInt(l.note.replace(/\\D/g, '')), timestamp: l.created_at }));
         
-        localStorage.setItem('wellness_mood', JSON.stringify(moods));
-        localStorage.setItem('wellness_sleep', JSON.stringify(sleeps));
+        // Helper to safely merge cloud data with local data by ID
+        const mergeData = (localKey, cloudArray) => {
+          const localArray = JSON.parse(localStorage.getItem(localKey)) || [];
+          const merged = [...localArray];
+          
+          cloudArray.forEach(cloudItem => {
+            if (!merged.find(localItem => localItem.id === cloudItem.id)) {
+              merged.push(cloudItem);
+            }
+          });
+          
+          // Sort chronologically
+          merged.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+          localStorage.setItem(localKey, JSON.stringify(merged));
+        };
+
+        const moods = logs.filter(l => l.log_type === 'mood').map(l => ({ 
+          id: l.id, 
+          level: l.value, 
+          note: l.note || '', 
+          timestamp: l.created_at 
+        }));
+        
+        const sleeps = logs.filter(l => l.log_type === 'sleep').map(l => ({ 
+          id: l.id, 
+          hours: l.value, 
+          quality: l.note ? parseInt(l.note.replace(/\\D/g, '')) || 3 : 3, 
+          timestamp: l.created_at 
+        }));
+
+        const activities = logs.filter(l => l.log_type === 'activity').map(l => ({
+          id: l.id,
+          poseName: l.note ? l.note.replace('Pose: ', '') : 'Yoga',
+          duration: l.value,
+          timestamp: l.created_at
+        }));
+        
+        mergeData('wellness_mood', moods);
+        mergeData('wellness_sleep', sleeps);
+        mergeData('wellness_activities', activities);
       }
     } catch (e) {
       console.error("Failed to sync from cloud", e);

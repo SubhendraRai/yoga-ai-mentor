@@ -1348,6 +1348,13 @@ body {
 
 @media (max-width: 480px) {
   .mood-emojis { gap: 6px; }
+}
+
+/* Hide mobile elements on desktop by default */
+.mobile-overlay-menu,
+.mobile-fab {
+  display: none;
+}
 
 /* ─── MOBILE RESPONSIVENESS ───────────────── */
 @media (max-width: 768px) {
@@ -1472,4 +1479,3 @@ body {
 }
   .mood-emoji { padding: 8px; font-size: 24px; }
   .chat-bubble { max-width: 90%; }
-}

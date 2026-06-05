@@ -10,6 +10,7 @@ import MentorChat from './components/MentorChat';
 import MoodTracker from './components/MoodTracker';
 import Settings from './components/Settings';
 import Sidebar from './components/Sidebar';
+import PoseDetail from './components/PoseDetail';
 
 import { supabase } from './lib/supabase';
 
@@ -20,6 +21,8 @@ export default function App() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [poseCheckPose, setPoseCheckPose] = useState(null);
+  const [selectedPose, setSelectedPose] = useState(null);
+  const [activeSession, setActiveSession] = useState(null);
 
   useEffect(() => {
     // Check initial auth state
@@ -171,8 +174,31 @@ export default function App() {
 
       <main className="main-content" style={{ marginLeft: sidebarCollapsed ? '60px' : '240px' }}>
         <div className="main-content-inner">
-          {currentPage === 'dashboard' && <Dashboard onNavigate={setCurrentPage} />}
+          {currentPage === 'dashboard' && (
+            <Dashboard 
+              onNavigate={setCurrentPage} 
+              onStartSession={(pose) => {
+                setActiveSession([pose]);
+                setCurrentPage('yoga');
+              }}
+              onLearnMore={(pose) => {
+                setSelectedPose(pose);
+                setCurrentPage('pose_detail');
+              }}
+            />
+          )}
           
+          {currentPage === 'pose_detail' && (
+            <PoseDetail 
+              pose={selectedPose} 
+              onBack={() => setCurrentPage('dashboard')} 
+              onStartSession={(pose) => {
+                setActiveSession([pose]);
+                setCurrentPage('yoga');
+              }}
+            />
+          )}
+
           {currentPage === 'plan' && (
             <div style={{ maxWidth: '800px', margin: '0 auto' }}>
               <WellnessPlan plan={WellnessMemory.getDailyPlan()} />
@@ -181,8 +207,9 @@ export default function App() {
           
           {currentPage === 'yoga' && (
             <YogaSession 
-              onStartPoseCheck={(pose) => { 
-                setPoseCheckPose(pose); 
+              session={activeSession}
+              onStartPoseCheck={(poseName) => { 
+                setPoseCheckPose(poseName); 
                 setCurrentPage('pose'); 
               }} 
               onComplete={() => setCurrentPage('dashboard')} 

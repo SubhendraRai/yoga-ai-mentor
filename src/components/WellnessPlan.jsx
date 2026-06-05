@@ -1,126 +1,99 @@
 import { useState, useEffect } from 'react';
-import { WellnessMemory } from '../lib/wellnessMemory';
-import { Check, RefreshCw } from 'lucide-react';
+import { RefreshCw, Play, Info } from 'lucide-react';
 
-export default function WellnessPlan({ plan, onRegenerate }) {
-  const [sections, setSections] = useState([]);
-  const [completedItems, setCompletedItems] = useState([]);
+export default function WellnessPlan({ plan, onRegenerate, onStartSession, onLearnMore }) {
+  const [parsedPlan, setParsedPlan] = useState(null);
+  const [recommendedPoses, setRecommendedPoses] = useState([]);
 
   useEffect(() => {
     if (plan) {
-      parsePlan(plan);
+      try {
+        // AI returns raw JSON string, sometimes wrapped in markdown block
+        const cleanJson = plan.replace(/```json/g, '').replace(/```/g, '').trim();
+        const data = JSON.parse(cleanJson);
+        setParsedPlan(data);
+        
+        // Support both old format (poseIds) and new dynamic format (poses)
+        if (data.poses) {
+          // New dynamic format
+          const posesWithImages = data.poses.map(pose => ({
+            ...pose,
+            id: pose.sanskritName.toLowerCase().replace(/[^a-z0-9]/g, '_'),
+            imageUrl: `https://placehold.co/800x600/13131a/c4a96a?text=${encodeURIComponent(pose.englishName)}&font=Playfair+Display`
+          }));
+          setRecommendedPoses(posesWithImages);
+        } else if (data.poseIds) {
+          // Fallback if AI hasn't been refreshed
+          setRecommendedPoses([]);
+        }
+      } catch (e) {
+        console.error("Failed to parse plan JSON:", e);
+      }
     }
   }, [plan]);
 
-  const parsePlan = (text) => {
-    const lines = text.split('\n');
-    let parsedSections = [];
-    let currentSection = null;
-
-    lines.forEach(line => {
-      const trimmed = line.trim();
-      if (!trimmed) return;
-
-      if (trimmed.startsWith('##')) {
-        if (currentSection) parsedSections.push(currentSection);
-        currentSection = {
-          title: trimmed.replace(/^#+\s*/, ''),
-          items: []
-        };
-      } else if (trimmed.startsWith('-') || trimmed.startsWith('*')) {
-        if (currentSection) {
-          currentSection.items.push({
-            id: `item_${Math.random().toString(36).substr(2, 9)}`,
-            text: trimmed.replace(/^[-*]\s*/, '').replace(/\*\*/g, ''), // Remove markdown bold for simplicity
-            completed: false
-          });
-        }
-      } else {
-        if (currentSection) {
-          currentSection.items.push({
-            id: `item_${Math.random().toString(36).substr(2, 9)}`,
-            text: trimmed.replace(/\*\*/g, ''),
-            completed: false,
-            isParagraph: true
-          });
-        } else {
-          // If no section yet, create a default one (usually Morning Message)
-          currentSection = {
-            title: "Morning Message",
-            items: [{
-              id: `item_${Math.random().toString(36).substr(2, 9)}`,
-              text: trimmed.replace(/\*\*/g, ''),
-              completed: false,
-              isParagraph: true
-            }]
-          };
-        }
-      }
-    });
-
-    if (currentSection) parsedSections.push(currentSection);
-    setSections(parsedSections);
-  };
-
-  const toggleItem = (sectionIdx, itemIdx) => {
-    const newSections = [...sections];
-    const item = newSections[sectionIdx].items[itemIdx];
-    
-    // Don't toggle paragraphs unless they look like actionable items
-    if (item.isParagraph && !item.text.includes('min')) return;
-
-    item.completed = !item.completed;
-    setSections(newSections);
-
-    if (item.completed) {
-      WellnessMemory.logActivity(`act_${Date.now()}`, newSections[sectionIdx].title, item.text, 15);
-      if (!completedItems.includes(item.id)) {
-        setCompletedItems([...completedItems, item.id]);
-      }
-    } else {
-      setCompletedItems(completedItems.filter(id => id !== item.id));
-    }
-  };
-
-  if (!plan) return null;
-
-  // Calculate progress
-  const actionableItems = sections.flatMap(s => s.items).filter(i => !i.isParagraph || i.text.includes('min'));
-  const progress = actionableItems.length > 0 ? (completedItems.length / actionableItems.length) * 100 : 0;
+  if (!parsedPlan) return null;
 
   return (
-    <div className="result-card">
-      <div className="result-header">
-        <span>Today's Wellness Plan</span>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '13px', fontFamily: "'DM Sans', sans-serif", color: 'var(--text-secondary)' }}>
-          {Math.round(progress)}% Complete
-          <div style={{ width: '60px', height: '4px', background: 'var(--border-color)', borderRadius: '2px', overflow: 'hidden' }}>
-            <div style={{ width: `${progress}%`, height: '100%', background: 'var(--accent-gold)', transition: 'width 0.3s ease' }} />
-          </div>
-        </div>
+    <div style={{ animation: 'fadeUp 0.5s ease both' }}>
+      <div className="card" style={{ marginBottom: '24px', background: 'var(--bg-secondary)' }}>
+        <h3 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '24px', color: 'var(--accent-gold)', marginBottom: '12px' }}>
+          Today's Guidance
+        </h3>
+        <p style={{ color: 'var(--text-body)', fontSize: '15px', lineHeight: '1.6' }}>
+          {parsedPlan.message}
+        </p>
       </div>
 
-      <div className="result-body">
-        {sections.map((section, sIdx) => (
-          <div key={sIdx}>
-            <div className="section-head">{section.title}</div>
-            {section.items.map((item, iIdx) => (
-              <div 
-                key={item.id} 
-                className={`activity-item ${item.isParagraph && !item.text.includes('min') ? '' : 'actionable'}`}
-                onClick={() => toggleItem(sIdx, iIdx)}
-                style={{ cursor: (item.isParagraph && !item.text.includes('min')) ? 'default' : 'pointer' }}
-              >
-                {(!item.isParagraph || item.text.includes('min')) && (
-                  <div className={`activity-checkbox ${item.completed ? 'checked' : ''}`}>
-                    {item.completed && <Check size={12} color="var(--bg-primary)" strokeWidth={3} />}
-                  </div>
-                )}
-                <div className={`activity-text ${item.completed ? 'completed' : ''}`}>
-                  {item.text}
-                </div>
+      <h3 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '20px', color: 'var(--text-primary)', marginBottom: '16px' }}>
+        Recommended Flow
+      </h3>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '20px' }}>
+        {recommendedPoses.map(pose => (
+          <div key={pose.id} className="card" style={{ padding: '0', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ height: '160px', width: '100%', position: 'relative' }}>
+              <img 
+                src={pose.imageUrl} 
+                alt={pose.englishName} 
+                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              />
+              <div style={{ position: 'absolute', top: '12px', right: '12px', background: 'rgba(255,255,255,0.9)', color: '#0d0d0f', padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 'bold' }}>
+                {pose.duration} mins
               </div>
-            ))}
+            </div>
+            
+            <div style={{ padding: '20px', flex: 1, display: 'flex', flexDirection: 'column' }}>
+              <h4 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '20px', color: 'var(--text-primary)', marginBottom: '4px' }}>
+                {pose.englishName}
+              </h4>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '12px', marginBottom: '16px' }}>
+                {pose.sanskritName}
+              </p>
+              
+              <ul style={{ paddingLeft: '16px', color: 'var(--text-body)', fontSize: '13px', marginBottom: '24px', flex: 1 }}>
+                {pose.shortBenefits.map((benefit, i) => (
+                  <li key={i} style={{ marginBottom: '4px' }}>{benefit}</li>
+                ))}
+              </ul>
+              
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                <button 
+                  className="submit-btn" 
+                  style={{ marginTop: 0, padding: '10px', fontSize: '13px' }}
+                  onClick={() => onStartSession(pose)}
+                >
+                  <Play size={14} /> Start Session
+                </button>
+                <button 
+                  className="btn-outline" 
+                  style={{ padding: '10px', fontSize: '13px', justifyContent: 'center' }}
+                  onClick={() => onLearnMore(pose)}
+                >
+                  <Info size={14} /> Learn More
+                </button>
+              </div>
+            </div>
           </div>
         ))}
       </div>

@@ -91,40 +91,32 @@ export async function callAI(systemInstruction, contents) {
  * Generate a structured daily wellness plan.
  */
 export async function generateWellnessPlan(userContext) {
-  const system = `You are an expert AI Wellness Mentor who creates deeply personalized daily wellness plans. You know the user intimately through the context provided. Generate plans that feel crafted specifically for this individual, not generic templates.`;
+  const system = `You are an expert AI Wellness Mentor. You must output ONLY raw JSON. No markdown formatting, no code blocks, no explanations. Just valid JSON.`;
 
-  const prompt = `Based on the following user profile and wellness data, create a comprehensive and personalized daily wellness plan.
+  const prompt = `Based on the following user profile and wellness data, create a personalized daily wellness plan.
 
 ${userContext}
 
-Structure the plan with these sections (use clear markdown headers):
+Generate a dynamic, customized yoga session with 3 to 5 poses that perfectly match the user's current physical and mental state. Do NOT use a hardcoded list - use your vast knowledge of Yoga asanas to pick the most appropriate ones.
 
-## ☀️ Morning Message
-A warm, motivating message that references their current state and goals (2-3 sentences).
-
-## 🧘 Yoga Session
-Recommend 3-5 specific yoga poses. For each pose include:
-- Pose name (Sanskrit and English)
-- Duration/hold time
-- Brief instruction or alignment cue
-- Why this pose benefits them specifically
-
-## 🌬️ Breathing Practice
-A specific pranayama technique with step-by-step instructions and duration.
-
-## 🧘‍♀️ Meditation
-A guided meditation theme with duration and technique suited to their level.
-
-## 🧠 Focus Exercise
-A mindfulness or cognitive exercise for mental clarity.
-
-## 💡 Wellness Tip
-One actionable wellness tip personalized to their goals and recent data.
-
-## 📅 Weekly Outlook
-Brief overview of suggested focus areas for the coming days based on their trends.
-
-Make everything feel personal, warm, and encouraging. Reference their specific data.`;
+Your response MUST be a raw JSON object with this exact structure:
+{
+  "message": "A warm, motivating message referencing their current state and goals (2-3 sentences).",
+  "poses": [
+    {
+      "englishName": "String (e.g. Triangle Pose)",
+      "sanskritName": "String (e.g. Trikonasana)",
+      "duration": Number (minutes, e.g. 3),
+      "difficulty": "String (Beginner, Intermediate, or Advanced)",
+      "shortBenefits": ["String", "String"],
+      "fullBenefits": "String (1 detailed paragraph)",
+      "steps": ["String", "String", "String"],
+      "mistakes": ["String", "String"],
+      "precautions": ["String", "String"],
+      "aiTip": "String (A helpful tip for alignment or breathing)"
+    }
+  ]
+}`;
 
   return callAI(system, [{ role: 'user', parts: [{ text: prompt }] }]);
 }

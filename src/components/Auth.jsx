@@ -312,6 +312,24 @@ export default function Auth({ onLoginSuccess }) {
               {successMsg}
             </p>
           )}
+
+          <div style={{ marginTop: '24px', textAlign: 'center', position: 'relative' }}>
+            <hr style={{ borderColor: 'var(--border-color)', margin: '0' }} />
+            <span style={{ position: 'absolute', top: '-10px', left: '50%', transform: 'translateX(-50%)', background: 'var(--bg-primary)', padding: '0 12px', fontSize: '12px', color: 'var(--text-secondary)' }}>OR</span>
+          </div>
+
+          <button 
+            type="button" 
+            className="btn-outline" 
+            style={{ width: '100%', marginTop: '24px', justifyContent: 'center' }}
+            onClick={() => {
+              const guestData = { id: 'guest', email: 'guest@yogtatva.local', name: 'Guest' };
+              localStorage.setItem("yoga_current_user", JSON.stringify(guestData));
+              onLoginSuccess(guestData);
+            }}
+          >
+            Continue as Guest (Local Only)
+          </button>
         </form>
       </div>
     </div>

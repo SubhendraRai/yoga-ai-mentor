@@ -6,7 +6,7 @@ import MoodTracker from './MoodTracker';
 import WellnessPlan from './WellnessPlan';
 import { Sparkles, Sun, Moon, Flower2, Camera, MessageCircle, MoonStar, Flame } from 'lucide-react';
 
-export default function Dashboard({ onNavigate }) {
+export default function Dashboard({ onNavigate, onStartSession, onLearnMore }) {
   const [greeting, setGreeting] = useState('');
   const [plan, setPlan] = useState('');
   const [loadingPlan, setLoadingPlan] = useState(false);
@@ -38,7 +38,12 @@ export default function Dashboard({ onNavigate }) {
     // Plan
     const savedPlan = WellnessMemory.getDailyPlan();
     if (savedPlan) {
-      setPlan(savedPlan);
+      if (savedPlan.includes('"poseIds"') && !savedPlan.includes('"poses"')) {
+        // Cached plan is in the old format, regenerate automatically
+        handleGeneratePlan(context);
+      } else {
+        setPlan(savedPlan);
+      }
     } else {
       handleGeneratePlan(context);
     }
@@ -139,7 +144,12 @@ export default function Dashboard({ onNavigate }) {
           <div className="spinner" />
         </div>
       ) : (
-        <WellnessPlan plan={plan} onRegenerate={() => handleGeneratePlan()} />
+        <WellnessPlan 
+          plan={plan} 
+          onRegenerate={() => handleGeneratePlan()} 
+          onStartSession={onStartSession}
+          onLearnMore={onLearnMore}
+        />
       )}
     </div>
   );
