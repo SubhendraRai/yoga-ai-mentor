@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { WellnessMemory } from '../lib/wellnessMemory';
-import { generateWellnessPlan, generateMorningGreeting } from '../lib/ai';
+import { generateMorningGreeting } from '../lib/ai';
+import { generateRuleBasedPlan } from '../lib/rulesEngine';
 import WellnessScore from './WellnessScore';
 import MoodTracker from './MoodTracker';
 import WellnessPlan from './WellnessPlan';
@@ -60,25 +61,28 @@ export default function Dashboard({ onNavigate, onStartSession, onLearnMore }) {
     // Plan
     const savedPlan = WellnessMemory.getDailyPlan();
     if (savedPlan) {
-      if (savedPlan.includes('"poseIds"') && !savedPlan.includes('"poses"')) {
-        // Cached plan is in the old format, regenerate automatically
-        handleGeneratePlan(context);
-      } else {
-        setPlan(savedPlan);
-      }
+      setPlan(savedPlan);
     } else {
-      handleGeneratePlan(context);
+      handleGeneratePlan(profile);
     }
   };
 
-  const handleGeneratePlan = async (context = WellnessMemory.getContextForAI()) => {
+  const handleGeneratePlan = (currentProfile = profile) => {
     setLoadingPlan(true);
-    const res = await generateWellnessPlan(context);
-    if (res.success) {
-      setPlan(res.text);
-      WellnessMemory.saveDailyPlan(res.text);
-    }
-    setLoadingPlan(false);
+    // Use deterministic rules engine instead of AI!
+    const sleepHist = WellnessMemory.getSleepHistory(7);
+    const moodHist = WellnessMemory.getMoodHistory(7);
+    
+    const ruleBasedPlan = generateRuleBasedPlan(currentProfile, moodHist, sleepHist);
+    const planString = JSON.stringify(ruleBasedPlan);
+    
+    setPlan(planString);
+    WellnessMemory.saveDailyPlan(planString);
+    
+    // Simulate slight loading delay for UX
+    setTimeout(() => {
+      setLoadingPlan(false);
+    }, 500);
   };
 
   const handleLogSleep = () => {

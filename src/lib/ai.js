@@ -131,39 +131,7 @@ export async function callAI(systemInstruction, contents) {
 // Public API
 // ─────────────────────────────────────────────────────────────
 
-/**
- * Generate a structured daily wellness plan.
- */
-export async function generateWellnessPlan(userContext) {
-  const system = `You are an expert AI Wellness Mentor. You must output ONLY raw JSON. No markdown formatting, no code blocks, no explanations. Just valid JSON.`;
 
-  const prompt = `Based on the following user profile and wellness data, create a personalized daily wellness plan.
-
-${userContext}
-
-Generate a dynamic, customized yoga session with 3 to 5 poses that perfectly match the user's current physical and mental state. Do NOT use a hardcoded list - use your vast knowledge of Yoga asanas to pick the most appropriate ones.
-
-Your response MUST be a raw JSON object with this exact structure:
-{
-  "message": "A warm, motivating message referencing their current state and goals (2-3 sentences).",
-  "poses": [
-    {
-      "englishName": "String (e.g. Triangle Pose)",
-      "sanskritName": "String (e.g. Trikonasana)",
-      "duration": Number (minutes, e.g. 3),
-      "difficulty": "String (Beginner, Intermediate, or Advanced)",
-      "shortBenefits": ["String", "String"],
-      "fullBenefits": "String (1 detailed paragraph)",
-      "steps": ["String", "String", "String"],
-      "mistakes": ["String", "String"],
-      "precautions": ["String", "String"],
-      "aiTip": "String (A helpful tip for alignment or breathing)"
-    }
-  ]
-}`;
-
-  return callAI(system, [{ role: 'user', parts: [{ text: prompt }] }]);
-}
 
 /**
  * Generate a warm, personalized morning greeting (2-3 sentences).
@@ -261,8 +229,8 @@ Guidelines:
 
   // Add conversation history
   if (conversationHistory.length > 0) {
-    // Keep last 20 messages to stay within context limits
-    const recent = conversationHistory.slice(-20);
+    // Keep last 6 messages to stay within token context limits and reduce costs
+    const recent = conversationHistory.slice(-6);
     for (const msg of recent) {
       contents.push({
         role: msg.role === 'assistant' || msg.role === 'model' ? 'model' : 'user',
@@ -280,35 +248,25 @@ Guidelines:
   return callAI(system, contents);
 }
 
-/**
- * Generate an initial AI assessment from onboarding data.
- */
 export async function generateOnboardingProfile(onboardingData) {
-  const system = `You are a warm, expert AI Wellness Mentor meeting a new user for the first time. Create an encouraging, personalized welcome assessment. Be specific about their goals and create a sense of partnership.`;
+  // Replace 2000-token AI generation with deterministic rules engine!
+  const name = onboardingData.name || 'Friend';
+  const level = onboardingData.experience || 'Beginner';
+  const goals = onboardingData.goals ? onboardingData.goals.join(', ') : 'wellness';
 
-  const dataStr = typeof onboardingData === 'string'
-    ? onboardingData
-    : JSON.stringify(onboardingData, null, 2);
-
-  const prompt = `A new user just completed their onboarding. Here is their data:
-
-${dataStr}
-
-Generate a warm, personalized response with these sections:
-
-## 🙏 Welcome Message
-A heartfelt 2-3 sentence welcome that uses their name and acknowledges their decision to start this journey.
+  const text = `## 🙏 Welcome Message
+Welcome to YogTatva, ${name}! I'm thrilled you've decided to start this journey. Together, we will build a sustainable and fulfilling practice tailored just for you.
 
 ## 📋 Initial Assessment
-Based on their experience level, goals, and any health considerations, provide a brief honest assessment of where they are and where they can go (3-4 sentences).
+As a ${level} looking to focus on ${goals}, you are in a perfect starting position. We will gently build your foundation and gradually introduce flows that challenge your physical and mental stamina, respecting your body's current state.
 
 ## 🎯 Recommended Focus Areas
-List 3-4 specific focus areas based on their goals and current state. Explain why each matters for them.
+- **Foundational Alignment**: Ensuring safety in core poses.
+- **Breath Connection**: Linking movement with steady inhales and exhales.
+- **Consistency**: Building a small, daily habit rather than exhausting yourself.
 
 ## 📅 First Week Plan Overview
-A high-level overview of what their first week will look like. Day-by-day is not necessary — just themes and expectations.
+Your first week will focus on exploration and building the habit. We will keep sessions relatively short and focus heavily on restorative and foundational postures so your body can adapt smoothly to the new routine. I am here to support you every step of the way!`;
 
-Make them feel excited and supported. This is the start of a meaningful journey.`;
-
-  return callAI(system, [{ role: 'user', parts: [{ text: prompt }] }]);
+  return { success: true, text };
 }
