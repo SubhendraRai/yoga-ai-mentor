@@ -201,7 +201,17 @@ export default function App() {
 
           {currentPage === 'plan' && (
             <div style={{ maxWidth: '800px', margin: '0 auto' }}>
-              <WellnessPlan plan={WellnessMemory.getDailyPlan()} />
+              <WellnessPlan 
+                plan={WellnessMemory.getDailyPlan()} 
+                onStartSession={(pose) => {
+                  setActiveSession([pose]);
+                  setCurrentPage('yoga');
+                }}
+                onLearnMore={(pose) => {
+                  setSelectedPose(pose);
+                  setCurrentPage('pose_detail');
+                }}
+              />
             </div>
           )}
           

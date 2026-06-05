@@ -17,7 +17,21 @@ export default function YogaSession({ session, onComplete, onStartPoseCheck }) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [timeLeft, setTimeLeft] = useState(poses[0].duration * 60);
   const [isFinished, setIsFinished] = useState(false);
-  
+  const [bgIndex, setBgIndex] = useState(0);
+
+  const bgImages = [
+    'https://images.unsplash.com/photo-1441974231531-c6227db76b6e?auto=format&fit=crop&w=1600&q=80',
+    'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1600&q=80',
+    'https://images.unsplash.com/photo-1472214103451-9374bd1c798e?auto=format&fit=crop&w=1600&q=80'
+  ];
+
+  useEffect(() => {
+    const bgTimer = setInterval(() => {
+      setBgIndex(prev => (prev + 1) % bgImages.length);
+    }, 15000);
+    return () => clearInterval(bgTimer);
+  }, []);
+
   const timerRef = useRef(null);
   const currentPose = poses[currentIndex];
 
@@ -84,21 +98,39 @@ export default function YogaSession({ session, onComplete, onStartPoseCheck }) {
   const circumference = 2 * Math.PI * radius;
   const strokeDashoffset = circumference - (timeLeft / totalSeconds) * circumference;
 
+  const englishName = currentPose.englishName || currentPose.name;
+  const description = currentPose.fullBenefits || currentPose.description;
+  const benefits = currentPose.shortBenefits ? currentPose.shortBenefits.join(', ') : currentPose.benefits;
+
   return (
-    <div style={{ maxWidth: '800px', margin: '0 auto' }}>
-      <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-        <div className="badge badge-gold" style={{ marginBottom: '16px' }}>Pose {currentIndex + 1} of {poses.length}</div>
-        <h2 className="hero-title" style={{ fontSize: '42px', marginBottom: '16px' }}>{currentPose.name}</h2>
-        <button 
-          className="btn-outline" 
-          style={{ background: 'var(--bg-secondary)' }}
-          onClick={() => onStartPoseCheck(currentPose.name)}
-        >
-          <Camera size={14} /> Check My Pose
-        </button>
+    <>
+      <div style={{
+        position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: -1,
+        pointerEvents: 'none', background: 'var(--bg-primary)'
+      }}>
+        {bgImages.map((img, i) => (
+          <div key={img} style={{
+            position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+            backgroundImage: `url(${img})`, backgroundSize: 'cover', backgroundPosition: 'center',
+            opacity: bgIndex === i ? 0.25 : 0, transition: 'opacity 2s ease-in-out'
+          }} />
+        ))}
       </div>
 
-      <div className="card" style={{ padding: '48px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+      <div style={{ maxWidth: '800px', margin: '0 auto', position: 'relative', zIndex: 1 }}>
+        <div style={{ textAlign: 'center', marginBottom: '32px' }}>
+          <div className="badge badge-gold" style={{ marginBottom: '16px' }}>Pose {currentIndex + 1} of {poses.length}</div>
+          <h2 className="hero-title" style={{ fontSize: '42px', marginBottom: '16px' }}>{englishName}</h2>
+          <button 
+            className="btn-outline" 
+            style={{ background: 'var(--bg-secondary)' }}
+            onClick={() => onStartPoseCheck(englishName)}
+          >
+            <Camera size={14} /> Check My Pose
+          </button>
+        </div>
+
+        <div className="card" style={{ padding: '48px', display: 'flex', flexDirection: 'column', alignItems: 'center', background: 'rgba(255, 255, 255, 0.85)', backdropFilter: 'blur(10px)' }}>
         <div className="session-timer">
           <svg>
             <circle cx="80" cy="80" r={radius} fill="none" stroke="var(--bg-tertiary)" strokeWidth="6" />
@@ -122,13 +154,14 @@ export default function YogaSession({ session, onComplete, onStartPoseCheck }) {
 
         <div style={{ marginTop: '48px', width: '100%', maxWidth: '500px', textAlign: 'center' }}>
           <p style={{ color: 'var(--text-primary)', fontSize: '16px', lineHeight: '1.6', marginBottom: '16px' }}>
-            {currentPose.description}
+            {description}
           </p>
           <div className="info-alert" style={{ textAlign: 'left' }}>
-            <strong style={{ color: 'var(--accent-gold)' }}>Benefits:</strong> {currentPose.benefits}
+            <strong style={{ color: 'var(--accent-gold)' }}>Benefits:</strong> {benefits}
           </div>
         </div>
       </div>
     </div>
+    </>
   );
 }
