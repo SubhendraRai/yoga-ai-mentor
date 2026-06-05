@@ -10,6 +10,7 @@ export default function MoodTracker({ onMoodLogged, compact = false }) {
   const [success, setSuccess] = useState(false);
   const [insight, setInsight] = useState('');
   const [history, setHistory] = useState([]);
+  const [alreadyLogged, setAlreadyLogged] = useState(false);
 
   const moods = [
     { level: 1, emoji: '😢', label: 'Rough' },
@@ -20,7 +21,17 @@ export default function MoodTracker({ onMoodLogged, compact = false }) {
   ];
 
   useEffect(() => {
-    setHistory(WellnessMemory.getMoodHistory(7));
+    const hist = WellnessMemory.getMoodHistory(7);
+    setHistory(hist);
+    
+    // Lock for 24 hours if already logged today
+    const todayStr = new Date().toISOString().split('T')[0];
+    const todayLog = hist.find(h => h.timestamp.startsWith(todayStr));
+    
+    if (todayLog && !success) {
+      setAlreadyLogged(true);
+      setSuccess(true);
+    }
   }, [success]);
 
   const handleLogMood = async () => {
@@ -48,12 +59,8 @@ export default function MoodTracker({ onMoodLogged, compact = false }) {
     setLoading(false);
     if (onMoodLogged) onMoodLogged();
     
-    // Reset form after a delay
-    setTimeout(() => {
-      setSuccess(false);
-      setSelectedMood(null);
-      setNote('');
-    }, 5000);
+    // Don't reset if we want to keep the 24hr lock visible
+    setAlreadyLogged(true);
   };
 
   const getDotColor = (level) => {
@@ -71,9 +78,9 @@ export default function MoodTracker({ onMoodLogged, compact = false }) {
     return (
       <div className="card-sm" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
         <div className="card-header" style={{ fontSize: '15px', marginBottom: '8px' }}>Today's Mood</div>
-        {success ? (
+        {success || alreadyLogged ? (
           <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--success-color)', fontSize: '13px', gap: '8px' }}>
-            <Check size={16} /> Logged successfully
+            <Check size={16} /> Logged for today
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
@@ -108,10 +115,10 @@ export default function MoodTracker({ onMoodLogged, compact = false }) {
   return (
     <div className="card" style={{ maxWidth: '600px', margin: '0 auto' }}>
       <div className="card-header">
-        How are you feeling today?
+            {alreadyLogged ? "Today's check-in complete" : "How are you feeling today?"}
       </div>
       
-      {success ? (
+      {success || alreadyLogged ? (
         <div style={{ padding: '32px 0', textAlign: 'center' }}>
           <div style={{ 
             width: '48px', height: '48px', borderRadius: '50%', background: 'rgba(112, 184, 112, 0.1)', 

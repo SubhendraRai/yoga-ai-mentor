@@ -369,6 +369,12 @@ export const WellnessMemory = {
     const userId = await WellnessMemory.getUserId();
     if (!userId || userId === 'guest') return;
 
+    const lastSync = localStorage.getItem('wellness_last_sync');
+    if (lastSync && Date.now() - parseInt(lastSync) < 5 * 60 * 1000) {
+      console.log('Skipping cloud sync, last sync was < 5 mins ago');
+      return;
+    }
+
     try {
       // Execute all 3 fetches concurrently to speed up login time
       const [profileRes, obsRes, logsRes] = await Promise.allSettled([
@@ -447,6 +453,8 @@ export const WellnessMemory = {
         mergeData('wellness_sleep', sleeps);
         mergeData('wellness_activities', activities);
       }
+      
+      localStorage.setItem('wellness_last_sync', Date.now().toString());
     } catch (e) {
       console.error("Failed to sync from cloud", e);
     }

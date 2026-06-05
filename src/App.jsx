@@ -28,12 +28,14 @@ export default function App() {
     // Check initial auth state
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (session?.user) {
-        // Await sync BEFORE showing the app to ensure onboarding flag is set
-        await WellnessMemory.syncFromCloud();
         setCurrentUser({
           id: session.user.id,
           email: session.user.email,
           name: session.user.user_metadata?.name || 'User',
+        });
+        // Run sync in the background so the UI renders instantly
+        WellnessMemory.syncFromCloud().then(() => {
+          window.dispatchEvent(new Event('wellness_synced'));
         });
       }
       setLoading(false);
@@ -43,13 +45,16 @@ export default function App() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (session?.user) {
         setLoading(true);
-        await WellnessMemory.syncFromCloud();
         setCurrentUser({
           id: session.user.id,
           email: session.user.email,
           name: session.user.user_metadata?.name || 'User',
         });
         setLoading(false);
+        // Run sync in background
+        WellnessMemory.syncFromCloud().then(() => {
+          window.dispatchEvent(new Event('wellness_synced'));
+        });
       } else {
         setCurrentUser(null);
       }

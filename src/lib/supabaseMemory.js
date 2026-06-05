@@ -57,33 +57,46 @@ export async function getUserMemories(userId) {
  * Extracts facts from a user message in the background and saves to Supabase.
  */
 export async function extractAndSaveMemories(userId, userMessage) {
-  if (!userId || !userMessage || userMessage.length < 5) return;
+  if (!userId || !userMessage || userMessage.length < 5) return null;
 
   const systemPrompt = `You are a data extractor. Analyze the user's message and determine if it contains any NEW, IMPORTANT personal facts.
 Examples of important facts:
 - Physical conditions (e.g., "I have lower back pain", "I injured my knee")
 - Current life events (e.g., "I have exams next week", "I just had a baby")
 - Preferences (e.g., "I prefer morning workouts")
-- Goals (e.g., "I want to touch my toes")
 
-If there is a fact, output ONLY a concise, bulleted fact (e.g., "- User has lower back pain").
-If there are no important long-term facts, output EXACTLY the word: NONE`;
+Also, detect if the user is expressing an extreme shift in mood (e.g., "I am very sad", "I feel awful", "I am so happy").
+
+Respond ONLY in valid JSON format:
+{
+  "fact": "A concise bulleted fact or null",
+  "moodOverride": Number (1 for very sad/rough, 2 for sad/low, 3 for okay, 4 for good, 5 for great. Use null if no explicit mood is stated.)
+}`;
 
   try {
     const res = await callAI(systemPrompt, [{ role: 'user', content: userMessage }]);
     if (res.success && res.text) {
-      const extracted = res.text.trim();
-      if (extracted !== 'NONE' && extracted.length > 0 && !extracted.toLowerCase().includes('none')) {
-        
-        // Clean up bullet points if AI included them
-        const cleanMemory = extracted.replace(/^[-*•]\s*/, '').trim();
-        
-        // Save to Supabase
+      const text = res.text.trim();
+      let parsed = null;
+      try {
+        const jsonMatch = text.match(/\{[\s\S]*\}/);
+        parsed = JSON.parse(jsonMatch ? jsonMatch[0] : text);
+      } catch (e) {
+        console.error("Failed to parse memory JSON", e);
+        return null;
+      }
+      
+      if (parsed.fact && parsed.fact !== 'null' && parsed.fact !== 'NONE') {
+        const cleanMemory = parsed.fact.replace(/^[-*•]\s*/, '').trim();
         await supabase.from('memories').insert([{ user_id: userId, memory: cleanMemory }]);
         console.log("Memory Extracted & Saved:", cleanMemory);
       }
+      
+      return parsed;
     }
+    return null;
   } catch (err) {
     console.error("Failed to extract memory:", err);
+    return null;
   }
 }

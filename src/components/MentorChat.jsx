@@ -62,7 +62,15 @@ export default function MentorChat({ currentUser }) {
     
     if (currentUser?.id) {
       await saveChatMessage(currentUser.id, 'user', text.trim());
-      extractAndSaveMemories(currentUser.id, text.trim());
+      
+      // Check for AI Mood Override in the background
+      extractAndSaveMemories(currentUser.id, text.trim()).then(result => {
+        if (result && result.moodOverride) {
+          console.log("AI Overriding Mood from Chat:", result.moodOverride);
+          WellnessMemory.logMood(result.moodOverride, "AI Detected Mood Shift");
+          window.dispatchEvent(new Event('wellness_synced')); // Trigger UI refresh
+        }
+      });
     }
 
     try {

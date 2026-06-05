@@ -4,6 +4,7 @@ import { generateWellnessPlan, generateMorningGreeting } from '../lib/ai';
 import WellnessScore from './WellnessScore';
 import MoodTracker from './MoodTracker';
 import WellnessPlan from './WellnessPlan';
+import SkeletonLoader from './SkeletonLoader';
 import { Sparkles, Sun, Moon, Flower2, Camera, MessageCircle, MoonStar, Flame } from 'lucide-react';
 
 export default function Dashboard({ onNavigate, onStartSession, onLearnMore }) {
@@ -24,16 +25,37 @@ export default function Dashboard({ onNavigate, onStartSession, onLearnMore }) {
 
   useEffect(() => {
     loadDashboardData();
+    
+    // Re-render when cloud sync finishes pulling new data
+    const handleSync = () => {
+      // Force a re-fetch of local data by re-running loadDashboardData
+      loadDashboardData();
+    };
+    window.addEventListener('wellness_synced', handleSync);
+    return () => window.removeEventListener('wellness_synced', handleSync);
   }, []);
 
   const loadDashboardData = async () => {
     const context = WellnessMemory.getContextForAI();
     
-    // Greeting
-    generateMorningGreeting(context).then(res => {
-      if (res.success) setGreeting(res.text);
-      else setGreeting(`Good ${isAM ? 'morning' : 'evening'}, ${profile?.name}. Ready for your practice?`);
-    });
+    // Greeting (Daily Cache)
+    const todayStr = new Date().toISOString().split('T')[0];
+    const cachedGreeting = localStorage.getItem('wellness_greeting');
+    const greetingDate = localStorage.getItem('wellness_greeting_date');
+    
+    if (cachedGreeting && greetingDate === todayStr) {
+      setGreeting(cachedGreeting);
+    } else {
+      generateMorningGreeting(context).then(res => {
+        if (res.success) {
+          setGreeting(res.text);
+          localStorage.setItem('wellness_greeting', res.text);
+          localStorage.setItem('wellness_greeting_date', todayStr);
+        } else {
+          setGreeting(`Good ${isAM ? 'morning' : 'evening'}, ${profile?.name || 'Om'}. Ready for your practice?`);
+        }
+      });
+    }
 
     // Plan
     const savedPlan = WellnessMemory.getDailyPlan();
@@ -70,7 +92,7 @@ export default function Dashboard({ onNavigate, onStartSession, onLearnMore }) {
       <div className="dashboard-greeting">
         <h2 style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           {isAM ? <Sun style={{ color: '#e8c44a' }} /> : <Moon style={{ color: '#8892b0' }} />}
-          {greeting || 'Loading...'}
+          {greeting || <SkeletonLoader type="title" />}
         </h2>
       </div>
 
@@ -139,18 +161,34 @@ export default function Dashboard({ onNavigate, onStartSession, onLearnMore }) {
       </div>
 
       {/* Plan */}
-      {loadingPlan ? (
-        <div className="card" style={{ display: 'flex', justifyContent: 'center', padding: '60px 0' }}>
-          <div className="spinner" />
+      <div className="card plan-card" style={{ gridColumn: '1 / -1' }}>
+        <div className="card-header">
+          <h3><Sparkles size={20} className="icon-gold" /> Today's Recommended Flow</h3>
         </div>
-      ) : (
-        <WellnessPlan 
-          plan={plan} 
-          onRegenerate={() => handleGeneratePlan()} 
-          onStartSession={onStartSession}
-          onLearnMore={onLearnMore}
-        />
-      )}
+        {loadingPlan ? (
+          <div style={{ padding: '20px' }}>
+            <SkeletonLoader type="text" count={2} />
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginTop: '24px' }}>
+              <SkeletonLoader type="pose" />
+              <SkeletonLoader type="pose" />
+            </div>
+          </div>
+        ) : plan ? (
+          <WellnessPlan 
+            plan={plan} 
+            onRegenerate={() => handleGeneratePlan()} 
+            onStartSession={onStartSession}
+            onLearnMore={onLearnMore}
+          />
+        ) : (
+          <div style={{ padding: '24px', textAlign: 'center' }}>
+            <p style={{ marginBottom: '16px', color: 'var(--text-secondary)' }}>We couldn't generate your plan right now.</p>
+            <button className="submit-btn" onClick={() => handleGeneratePlan()} style={{ maxWidth: '200px', margin: '0 auto' }}>
+              Try Again
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
