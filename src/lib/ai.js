@@ -14,6 +14,41 @@ const ANTHROPIC_ENDPOINT = '/api/anthropic'; // Rewritten by vite config / verce
 
 const GROQ_API_KEY = import.meta.env.VITE_GROQ_API_KEY;
 
+async function callGeminiFallback(systemInstruction, contents) {
+  const keyToUse = currentApiKey || altApiKey;
+  if (!keyToUse) return { success: false, error: 'No fallback AI keys available.' };
+  
+  try {
+    const geminiContents = contents.map(c => ({
+      role: c.role === 'assistant' ? 'model' : 'user',
+      parts: c.parts || [{ text: c.content }]
+    }));
+    
+    if (systemInstruction) {
+      geminiContents.unshift(
+        { role: 'user', parts: [{ text: `System Instruction: ${systemInstruction}` }] },
+        { role: 'model', parts: [{ text: 'Understood.' }] }
+      );
+    }
+    
+    const res = await fetch(getGeminiEndpoint(keyToUse), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ contents: geminiContents })
+    });
+    
+    if (res.ok) {
+      const data = await res.json();
+      const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      return { success: true, text };
+    }
+    
+    return { success: false, error: `Gemini fallback failed: ${await res.text()}` };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+}
+
 /**
  * Low-level call to Groq Llama 3 API (via Vercel Serverless Route or direct fallback).
  */
@@ -41,8 +76,12 @@ export async function callAI(systemInstruction, contents) {
       return { success: true, text: data.text };
     }
     
-    // If the API route fails (e.g. running locally via plain Vite dev server),
-    // Fallback to direct client-side Groq call if the key is available
+    // Check if it's a 429 rate limit or 500 missing key from server
+    if (res.status === 429 || res.status === 500) {
+      console.warn(`/api/chat failed with ${res.status}, falling back to Gemini...`);
+      return await callGeminiFallback(systemInstruction, contents);
+    }
+    
     console.warn("/api/chat failed, falling back to direct Groq call...", await res.text());
   } catch (err) {
     console.warn("/api/chat not reachable, falling back to direct Groq call...");
@@ -70,6 +109,10 @@ export async function callAI(systemInstruction, contents) {
       });
 
       if (!response.ok) {
+        if (response.status === 429) {
+          console.warn("Groq rate limit hit. Falling back to Gemini...");
+          return await callGeminiFallback(systemInstruction, contents);
+        }
         return { success: false, error: `Groq direct API error: ${await response.text()}` };
       }
 
@@ -80,7 +123,8 @@ export async function callAI(systemInstruction, contents) {
     }
   }
 
-  return { success: false, error: "AI API Route failed and no local VITE_GROQ_API_KEY found." };
+  // 3. Final Fallback if no Groq keys
+  return await callGeminiFallback(systemInstruction, contents);
 }
 
 // ─────────────────────────────────────────────────────────────
