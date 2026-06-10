@@ -88,7 +88,8 @@ export default function MentorChat({ currentUser }) {
         }
       } else {
         playSound.error();
-        const errorMsg = { role: 'mentor', text: "I'm having trouble connecting right now. Let's try again in a moment.", timestamp: Date.now(), isError: true };
+        const errorText = response.error ? `Error: ${response.error}` : "I'm having trouble connecting right now. Let's try again in a moment.";
+        const errorMsg = { role: 'mentor', text: errorText, timestamp: Date.now(), isError: true };
         setMessages([...updatedMessages, errorMsg]);
       }
     } catch (e) {
