@@ -12,6 +12,7 @@ import Settings from './components/Settings';
 import Sidebar from './components/Sidebar';
 import PoseDetail from './components/PoseDetail';
 
+import { Lock } from 'lucide-react';
 import { supabase } from './lib/supabase';
 
 export default function App() {
@@ -231,7 +232,19 @@ export default function App() {
             />
           )}
           
-          {currentPage === 'pose' && <MediaPipePose initialPose={poseCheckPose} onExit={() => setCurrentPage('yoga')} />}
+          {currentPage === 'pose' && currentUser?.id === 'guest' ? (
+            <div className="card" style={{ maxWidth: '600px', margin: '100px auto', textAlign: 'center' }}>
+              <Lock size={48} style={{ color: 'var(--accent-gold)', margin: '0 auto 24px' }} />
+              <h2 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '28px', color: 'var(--text-primary)', marginBottom: '16px' }}>Live Coaching Locked</h2>
+              <p style={{ color: 'var(--text-secondary)', marginBottom: '24px' }}>
+                Guest accounts cannot access the advanced live computer vision and voice coaching features. 
+                Please sign up for a free account to unlock your personalized posture tracking!
+              </p>
+              <button className="submit-btn" onClick={() => handleLogout()}>Sign Up Now</button>
+            </div>
+          ) : currentPage === 'pose' ? (
+            <MediaPipePose initialPose={poseCheckPose} onExit={() => setCurrentPage('yoga')} />
+          ) : null}
           
           {currentPage === 'chat' && <MentorChat currentUser={currentUser} />}
           
