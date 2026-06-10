@@ -1,8 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
 import { ArrowLeft, CheckCircle } from 'lucide-react';
-import { Pose, POSE_CONNECTIONS } from '@mediapipe/pose';
-import { Camera } from '@mediapipe/camera_utils';
-import { drawConnectors, drawLandmarks } from '@mediapipe/drawing_utils';
 import { speechHelper } from '../lib/speech';
 
 export default function MediaPipePose({ initialPose = "Tree Pose", onExit }) {
@@ -13,89 +10,111 @@ export default function MediaPipePose({ initialPose = "Tree Pose", onExit }) {
   const [isPerfect, setIsPerfect] = useState(false);
 
   useEffect(() => {
-    const videoElement = videoRef.current;
-    const canvasElement = canvasRef.current;
-    const canvasCtx = canvasElement.getContext('2d');
-    
+    const loadScript = (src) => new Promise((resolve, reject) => {
+      if (document.querySelector(`script[src="${src}"]`)) return resolve();
+      const script = document.createElement('script');
+      script.src = src;
+      script.crossOrigin = "anonymous";
+      script.onload = resolve;
+      script.onerror = reject;
+      document.body.appendChild(script);
+    });
+
     let camera = null;
+    let pose = null;
 
-    function onResults(results) {
-      if (!isLoaded) {
-        setIsLoaded(true);
-        setFeedback("Camera ready. Step back so your full body is visible.");
-        speechHelper.speak("Camera ready. Please step back so I can see you.");
+    async function initMediaPipe() {
+      try {
+        await loadScript('https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js');
+        await loadScript('https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js');
+        await loadScript('https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js');
+        
+        startCamera();
+      } catch (e) {
+        console.error("Failed to load MediaPipe:", e);
+        setFeedback("Failed to load computer vision engine.");
       }
-
-      // Draw standard video frame
-      canvasCtx.save();
-      canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
-      
-      // Draw mirrored video
-      canvasCtx.translate(canvasElement.width, 0);
-      canvasCtx.scale(-1, 1);
-      canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
-
-      if (results.poseLandmarks) {
-        // Draw the skeleton
-        drawConnectors(canvasCtx, results.poseLandmarks, POSE_CONNECTIONS, { color: 'rgba(255, 255, 255, 0.5)', lineWidth: 4 });
-        drawLandmarks(canvasCtx, results.poseLandmarks, { color: 'var(--accent-gold)', lineWidth: 2, radius: 4 });
-
-        // MVP Posture Logic (Checking for Raised Arms / Tree Pose)
-        const leftShoulder = results.poseLandmarks[11];
-        const rightShoulder = results.poseLandmarks[12];
-        const leftWrist = results.poseLandmarks[15];
-        const rightWrist = results.poseLandmarks[16];
-
-        if (leftShoulder && rightShoulder && leftWrist && rightWrist) {
-          // In MediaPipe, y=0 is top of the screen.
-          // If wrists are below the shoulders (meaning y is larger), arms are down.
-          const leftArmRaised = leftWrist.y < leftShoulder.y;
-          const rightArmRaised = rightWrist.y < rightShoulder.y;
-
-          if (leftArmRaised && rightArmRaised) {
-            setFeedback("Perfect! Hold that pose.");
-            setIsPerfect(true);
-            speechHelper.speak("Great job! Hold it there.");
-          } else {
-            setFeedback("Raise your arms a little higher.");
-            setIsPerfect(false);
-            speechHelper.speak("Raise your arms a little higher.");
-          }
-        }
-      } else {
-        setFeedback("No pose detected. Make sure you are in frame.");
-        setIsPerfect(false);
-      }
-      canvasCtx.restore();
     }
 
-    const pose = new Pose({
-      locateFile: (file) => {
-        return \`https://cdn.jsdelivr.net/npm/@mediapipe/pose/\${file}\`;
-      }
-    });
+    function startCamera() {
+      const videoElement = videoRef.current;
+      const canvasElement = canvasRef.current;
+      const canvasCtx = canvasElement.getContext('2d');
 
-    pose.setOptions({
-      modelComplexity: 1,
-      smoothLandmarks: true,
-      enableSegmentation: false,
-      minDetectionConfidence: 0.5,
-      minTrackingConfidence: 0.5
-    });
-
-    pose.onResults(onResults);
-
-    camera = new Camera(videoElement, {
-      onFrame: async () => {
-        if (videoRef.current) {
-          await pose.send({ image: videoRef.current });
+      function onResults(results) {
+        if (!isLoaded) {
+          setIsLoaded(true);
+          setFeedback("Camera ready. Step back so your full body is visible.");
+          speechHelper.speak("Camera ready. Please step back so I can see you.");
         }
-      },
-      width: 640,
-      height: 480
-    });
 
-    camera.start();
+        canvasCtx.save();
+        canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+        
+        canvasCtx.translate(canvasElement.width, 0);
+        canvasCtx.scale(-1, 1);
+        canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
+
+        if (results.poseLandmarks && window.drawConnectors && window.drawLandmarks) {
+          window.drawConnectors(canvasCtx, results.poseLandmarks, window.POSE_CONNECTIONS, { color: 'rgba(255, 255, 255, 0.5)', lineWidth: 4 });
+          window.drawLandmarks(canvasCtx, results.poseLandmarks, { color: 'var(--accent-gold)', lineWidth: 2, radius: 4 });
+
+          const leftShoulder = results.poseLandmarks[11];
+          const rightShoulder = results.poseLandmarks[12];
+          const leftWrist = results.poseLandmarks[15];
+          const rightWrist = results.poseLandmarks[16];
+
+          if (leftShoulder && rightShoulder && leftWrist && rightWrist) {
+            const leftArmRaised = leftWrist.y < leftShoulder.y;
+            const rightArmRaised = rightWrist.y < rightShoulder.y;
+
+            if (leftArmRaised && rightArmRaised) {
+              setFeedback("Perfect! Hold that pose.");
+              setIsPerfect(true);
+              speechHelper.speak("Great job! Hold it there.");
+            } else {
+              setFeedback("Raise your arms a little higher.");
+              setIsPerfect(false);
+              speechHelper.speak("Raise your arms a little higher.");
+            }
+          }
+        } else if (!results.poseLandmarks) {
+          setFeedback("No pose detected. Make sure you are in frame.");
+          setIsPerfect(false);
+        }
+        canvasCtx.restore();
+      }
+
+      pose = new window.Pose({
+        locateFile: (file) => {
+          return `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`;
+        }
+      });
+
+      pose.setOptions({
+        modelComplexity: 1,
+        smoothLandmarks: true,
+        enableSegmentation: false,
+        minDetectionConfidence: 0.5,
+        minTrackingConfidence: 0.5
+      });
+
+      pose.onResults(onResults);
+
+      camera = new window.Camera(videoElement, {
+        onFrame: async () => {
+          if (videoRef.current) {
+            await pose.send({ image: videoRef.current });
+          }
+        },
+        width: 640,
+        height: 480
+      });
+
+      camera.start();
+    }
+
+    initMediaPipe();
 
     return () => {
       if (camera) camera.stop();
