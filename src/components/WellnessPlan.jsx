@@ -36,13 +36,20 @@ export default function WellnessPlan({ plan, onRegenerate, onStartSession, onLea
 
   return (
     <div style={{ animation: 'fadeUp 0.5s ease both' }}>
-      <div className="card" style={{ marginBottom: '24px', background: 'var(--bg-secondary)' }}>
+      <div className="card" style={{ marginBottom: '24px', background: 'var(--bg-secondary)', position: 'relative' }}>
         <h3 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '24px', color: 'var(--accent-gold)', marginBottom: '12px' }}>
           Today's Guidance
         </h3>
-        <p style={{ color: 'var(--text-body)', fontSize: '15px', lineHeight: '1.6' }}>
+        <p style={{ color: 'var(--text-body)', fontSize: '15px', lineHeight: '1.6', marginBottom: '24px' }}>
           {parsedPlan.message}
         </p>
+        <button 
+          className="submit-btn" 
+          onClick={() => onStartSession(recommendedPoses)}
+          style={{ width: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px' }}
+        >
+          <Play size={18} /> Start Full AI Routine
+        </button>
       </div>
 
       <h3 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '20px', color: 'var(--text-primary)', marginBottom: '16px' }}>

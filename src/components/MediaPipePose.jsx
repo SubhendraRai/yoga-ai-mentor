@@ -1,14 +1,101 @@
 import { useEffect, useRef, useState } from 'react';
-import { ArrowLeft, CheckCircle } from 'lucide-react';
+import { ArrowLeft, CheckCircle, Activity, Timer, ChevronRight } from 'lucide-react';
 import { speechHelper } from '../lib/speech';
+import { analyzePose } from '../lib/poseAnalyzer';
+import { playSound } from '../lib/audio';
+import { WellnessMemory } from '../lib/wellnessMemory';
 
-export default function MediaPipePose({ initialPose = "Tree Pose", onExit }) {
+export default function MediaPipePose({ session = [], initialPoseIndex = 0, onExit }) {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
+  const requestRef = useRef(null);
+  
   const [isLoaded, setIsLoaded] = useState(false);
+  const [currentIndex, setCurrentIndex] = useState(initialPoseIndex);
   const [feedback, setFeedback] = useState("Initializing camera...");
+  const [accuracy, setAccuracy] = useState(0);
   const [isPerfect, setIsPerfect] = useState(false);
+  
+  // Timer State
+  const [holdTimeLeft, setHoldTimeLeft] = useState(0);
+  const [sessionComplete, setSessionComplete] = useState(false);
+  const [sessionStats, setSessionStats] = useState({ averageAccuracy: 0, totalTime: 0, totalPoses: 0 });
+  const accuracyHistory = useRef([]);
+  const sessionStartTime = useRef(Date.now());
+  const lastTickTime = useRef(Date.now());
+  const accuracyRef = useRef(0);
+  const lastUiUpdateTime = useRef(0);
+  
+  // Current pose data
+  const defaultPose = { id: 'generic', englishName: "Free Practice", duration: 1, imageUrl: "https://placehold.co/800x600/13131a/c4a96a?text=Practice" };
+  const currentPose = session && session.length > currentIndex ? session[currentIndex] : defaultPose;
 
+  // Initialize timer when pose changes
+  useEffect(() => {
+    setHoldTimeLeft(currentPose.duration * 60); // duration is usually minutes, let's assume it's minutes for yoga plan but maybe we just do 30 seconds for AI MVP?
+    // Let's force a 30 second hold for the AI MVP to make it testable, unless duration is specified in seconds.
+    setHoldTimeLeft(30); 
+    setAccuracy(0);
+    setIsPerfect(false);
+    speechHelper.speak(`Next pose: ${currentPose.englishName}. Step into the frame.`);
+  }, [currentIndex, currentPose]);
+
+  // Main Timer Loop
+  useEffect(() => {
+    const tick = () => {
+      const now = Date.now();
+      const delta = (now - lastTickTime.current) / 1000;
+      lastTickTime.current = now;
+
+      // Only count down if accuracy is >= 85%
+      setHoldTimeLeft(prev => {
+        if (accuracyRef.current >= 85 && prev > 0 && !sessionComplete) {
+          const newTime = prev - delta;
+          if (newTime <= 0) {
+            handlePoseComplete();
+            return 0;
+          }
+          return newTime;
+        }
+        return prev;
+      });
+
+      requestRef.current = requestAnimationFrame(tick);
+    };
+    
+    requestRef.current = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(requestRef.current);
+  }, [accuracy, sessionComplete]);
+
+  const handlePoseComplete = () => {
+    playSound.chime();
+    speechHelper.speak("Pose completed successfully. Great job.", true);
+    
+    if (currentIndex < session.length - 1) {
+      setCurrentIndex(prev => prev + 1);
+    } else {
+      finishSession();
+    }
+  };
+
+  const finishSession = () => {
+    setSessionComplete(true);
+    const totalTimeSecs = Math.floor((Date.now() - sessionStartTime.current) / 1000);
+    const avgAcc = accuracyHistory.current.length ? 
+      Math.round(accuracyHistory.current.reduce((a, b) => a + b, 0) / accuracyHistory.current.length) : 0;
+    
+    setSessionStats({
+      averageAccuracy: avgAcc,
+      totalTime: totalTimeSecs,
+      totalPoses: session.length
+    });
+
+    // Save to memory
+    WellnessMemory.logActivity('ai_session', 'AI Coaching', `${session.length} Poses`, totalTimeSecs / 60);
+    speechHelper.speak("Session complete! Excellent work today. You are building a strong foundation.");
+  };
+
+  // MediaPipe Initialization
   useEffect(() => {
     const loadScript = (src) => new Promise((resolve, reject) => {
       if (document.querySelector(`script[src="${src}"]`)) return resolve();
@@ -21,14 +108,13 @@ export default function MediaPipePose({ initialPose = "Tree Pose", onExit }) {
     });
 
     let camera = null;
-    let pose = null;
+    let poseObj = null;
 
     async function initMediaPipe() {
       try {
         await loadScript('https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js');
         await loadScript('https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js');
         await loadScript('https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js');
-        
         startCamera();
       } catch (e) {
         console.error("Failed to load MediaPipe:", e);
@@ -39,59 +125,59 @@ export default function MediaPipePose({ initialPose = "Tree Pose", onExit }) {
     function startCamera() {
       const videoElement = videoRef.current;
       const canvasElement = canvasRef.current;
+      if (!canvasElement) return;
       const canvasCtx = canvasElement.getContext('2d');
 
       function onResults(results) {
         if (!isLoaded) {
           setIsLoaded(true);
-          setFeedback("Camera ready. Step back so your full body is visible.");
-          speechHelper.speak("Camera ready. Please step back so I can see you.");
+          setFeedback("Camera ready. Analyzing posture...");
         }
 
         canvasCtx.save();
         canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
-        
         canvasCtx.translate(canvasElement.width, 0);
         canvasCtx.scale(-1, 1);
         canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
 
         if (results.poseLandmarks && window.drawConnectors && window.drawLandmarks) {
-          window.drawConnectors(canvasCtx, results.poseLandmarks, window.POSE_CONNECTIONS, { color: 'rgba(255, 255, 255, 0.5)', lineWidth: 4 });
+          window.drawConnectors(canvasCtx, results.poseLandmarks, window.POSE_CONNECTIONS, { color: 'rgba(255, 255, 255, 0.4)', lineWidth: 4 });
           window.drawLandmarks(canvasCtx, results.poseLandmarks, { color: 'var(--accent-gold)', lineWidth: 2, radius: 4 });
 
-          const leftShoulder = results.poseLandmarks[11];
-          const rightShoulder = results.poseLandmarks[12];
-          const leftWrist = results.poseLandmarks[15];
-          const rightWrist = results.poseLandmarks[16];
+          const activePoseId = session[currentIndex]?.id || 'generic';
+          const analysis = analyzePose(results.poseLandmarks, activePoseId);
+          
+          accuracyRef.current = analysis.accuracy;
 
-          if (leftShoulder && rightShoulder && leftWrist && rightWrist) {
-            const leftArmRaised = leftWrist.y < leftShoulder.y;
-            const rightArmRaised = rightWrist.y < rightShoulder.y;
+          // Throttle React UI updates to ~5 times a second to prevent lag
+          const now = Date.now();
+          if (now - lastUiUpdateTime.current > 200) {
+            lastUiUpdateTime.current = now;
+            setAccuracy(analysis.accuracy);
+            accuracyHistory.current.push(analysis.accuracy);
+            setFeedback(analysis.feedback);
+            setIsPerfect(analysis.accuracy >= 85);
 
-            if (leftArmRaised && rightArmRaised) {
-              setFeedback("Perfect! Hold that pose.");
-              setIsPerfect(true);
-              speechHelper.speak("Great job! Hold it there.");
-            } else {
-              setFeedback("Raise your arms a little higher.");
-              setIsPerfect(false);
-              speechHelper.speak("Raise your arms a little higher.");
+            if (analysis.accuracy >= 85) {
+              speechHelper.speak("Great posture. Hold it there.");
+            } else if (analysis.accuracy > 0 && analysis.accuracy < 85) {
+              speechHelper.speak(analysis.feedback);
             }
           }
+
         } else if (!results.poseLandmarks) {
-          setFeedback("No pose detected. Make sure you are in frame.");
+          setAccuracy(0);
+          setFeedback("No pose detected. Step into the frame.");
           setIsPerfect(false);
         }
         canvasCtx.restore();
       }
 
-      pose = new window.Pose({
-        locateFile: (file) => {
-          return `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`;
-        }
+      poseObj = new window.Pose({
+        locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`
       });
 
-      pose.setOptions({
+      poseObj.setOptions({
         modelComplexity: 1,
         smoothLandmarks: true,
         enableSegmentation: false,
@@ -99,12 +185,12 @@ export default function MediaPipePose({ initialPose = "Tree Pose", onExit }) {
         minTrackingConfidence: 0.5
       });
 
-      pose.onResults(onResults);
+      poseObj.onResults(onResults);
 
       camera = new window.Camera(videoElement, {
         onFrame: async () => {
-          if (videoRef.current) {
-            await pose.send({ image: videoRef.current });
+          if (videoRef.current && !sessionComplete) {
+            await poseObj.send({ image: videoRef.current });
           }
         },
         width: 640,
@@ -118,18 +204,50 @@ export default function MediaPipePose({ initialPose = "Tree Pose", onExit }) {
 
     return () => {
       if (camera) camera.stop();
-      if (pose) pose.close();
+      if (poseObj) poseObj.close();
       speechHelper.cancel();
     };
-  }, [isLoaded]);
+  }, [isLoaded, sessionComplete]); // Re-bind if session completes to stop processing
+
+  // Calculate circular progress
+  const radius = 30;
+  const circumference = 2 * Math.PI * radius;
+  const totalHoldTime = 30; // MVP default
+  const strokeDashoffset = circumference - ((totalHoldTime - holdTimeLeft) / totalHoldTime) * circumference;
+
+  if (sessionComplete) {
+    return (
+      <div style={{ height: '100vh', width: '100vw', backgroundColor: 'var(--bg-primary)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
+        <h2 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '42px', color: 'var(--accent-gold)', marginBottom: '16px' }}>Session Complete</h2>
+        <div className="card" style={{ maxWidth: '400px', width: '100%', textAlign: 'center' }}>
+          <div style={{ fontSize: '64px', marginBottom: '16px' }}>🌟</div>
+          <div style={{ marginBottom: '16px' }}>
+            <div style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>Average Accuracy</div>
+            <div style={{ fontSize: '32px', color: 'var(--text-primary)', fontWeight: 'bold' }}>{sessionStats.averageAccuracy}%</div>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-around', marginBottom: '32px' }}>
+            <div>
+              <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Duration</div>
+              <div style={{ fontSize: '18px' }}>{Math.floor(sessionStats.totalTime / 60)}m {sessionStats.totalTime % 60}s</div>
+            </div>
+            <div>
+              <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Poses</div>
+              <div style={{ fontSize: '18px' }}>{sessionStats.totalPoses}</div>
+            </div>
+          </div>
+          <button className="submit-btn" onClick={onExit}>Return to Dashboard</button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ height: '100vh', width: '100vw', backgroundColor: '#000', position: 'relative', overflow: 'hidden' }}>
       
-      {/* Hidden Video Element (used as source) */}
+      {/* Hidden Video Element */}
       <video ref={videoRef} style={{ display: 'none' }} playsInline></video>
       
-      {/* Canvas Overlay for Skeleton */}
+      {/* Canvas Overlay */}
       <canvas 
         ref={canvasRef} 
         width={640} 
@@ -137,19 +255,66 @@ export default function MediaPipePose({ initialPose = "Tree Pose", onExit }) {
         style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)' }}
       ></canvas>
 
-      {/* UI Overlay */}
-      <div style={{ position: 'absolute', top: '40px', left: '0', right: '0', display: 'flex', justifyContent: 'space-between', padding: '0 24px', zIndex: 10 }}>
-        <button className="btn-icon" onClick={onExit} style={{ background: 'rgba(0,0,0,0.5)', color: 'white', border: 'none' }}>
+      {/* Top Header */}
+      <div style={{ position: 'absolute', top: '40px', left: '0', right: '0', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', padding: '0 24px', zIndex: 10 }}>
+        <button className="btn-icon" onClick={onExit} style={{ background: 'rgba(0,0,0,0.6)', color: 'white', border: 'none', backdropFilter: 'blur(10px)' }}>
           <ArrowLeft size={24} />
         </button>
-        <div style={{ background: 'rgba(0,0,0,0.5)', padding: '8px 16px', borderRadius: '20px', color: 'white', fontFamily: "'Cormorant Garamond', serif", fontSize: '20px' }}>
-          {initialPose}
+
+        {/* Dynamic Analytics Hud */}
+        <div style={{ display: 'flex', gap: '16px' }}>
+          {/* Accuracy Score */}
+          <div style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(10px)', padding: '12px 20px', borderRadius: '16px', color: 'white', display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <Activity size={20} color={accuracy >= 85 ? '#4caf50' : '#ff9800'} />
+            <div>
+              <div style={{ fontSize: '12px', opacity: 0.8, textTransform: 'uppercase', letterSpacing: '1px' }}>Accuracy</div>
+              <div style={{ fontSize: '24px', fontWeight: 'bold', fontFamily: "'Cormorant Garamond', serif" }}>{accuracy}%</div>
+            </div>
+          </div>
+
+          {/* Reference Pose PiP */}
+          <div style={{ width: '160px', height: '120px', borderRadius: '16px', overflow: 'hidden', border: '2px solid rgba(255,255,255,0.2)', background: '#111', position: 'relative', boxShadow: '0 8px 32px rgba(0,0,0,0.5)' }}>
+            <img 
+              src={currentPose.imageUrl || `https://placehold.co/800x600/13131a/c4a96a?text=${encodeURIComponent(currentPose.englishName)}`} 
+              alt={currentPose.englishName} 
+              style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+            />
+            <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'rgba(0,0,0,0.8)', padding: '4px 8px', fontSize: '12px', color: 'white', textAlign: 'center' }}>
+              {currentPose.englishName}
+            </div>
+          </div>
         </div>
       </div>
 
-      <div style={{ position: 'absolute', bottom: '40px', left: '24px', right: '24px', display: 'flex', justifyContent: 'center', zIndex: 10 }}>
+      {/* Timer & Hold Progress */}
+      <div style={{ position: 'absolute', left: '24px', top: '50%', transform: 'translateY(-50%)', zIndex: 10 }}>
+        <div style={{ position: 'relative', width: '80px', height: '80px', background: 'rgba(0,0,0,0.6)', borderRadius: '50%', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <svg width="80" height="80" style={{ position: 'absolute', top: 0, left: 0, transform: 'rotate(-90deg)' }}>
+            <circle cx="40" cy="40" r={radius} fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="4" />
+            <circle 
+              cx="40" cy="40" r={radius} fill="none" 
+              stroke={accuracy >= 85 ? 'var(--accent-gold)' : '#ff9800'} 
+              strokeWidth="4" strokeLinecap="round" 
+              strokeDasharray={circumference} 
+              strokeDashoffset={strokeDashoffset} 
+              style={{ transition: 'stroke-dashoffset 0.1s linear, stroke 0.3s ease' }}
+            />
+          </svg>
+          <div style={{ color: 'white', textAlign: 'center' }}>
+            <div style={{ fontSize: '20px', fontWeight: 'bold' }}>{Math.ceil(holdTimeLeft)}s</div>
+            <div style={{ fontSize: '10px', opacity: 0.7 }}>HOLD</div>
+          </div>
+        </div>
+        {accuracy < 85 && holdTimeLeft < totalHoldTime && (
+          <div style={{ color: '#ff9800', fontSize: '12px', marginTop: '8px', textAlign: 'center', background: 'rgba(0,0,0,0.6)', padding: '4px 8px', borderRadius: '8px' }}>Paused</div>
+        )}
+      </div>
+
+      {/* Bottom Feedback Bar */}
+      <div style={{ position: 'absolute', bottom: '40px', left: '24px', right: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', zIndex: 10 }}>
         <div style={{ 
-          background: isPerfect ? 'rgba(76, 175, 80, 0.9)' : 'rgba(0,0,0,0.7)', 
+          background: isPerfect ? 'rgba(76, 175, 80, 0.9)' : 'rgba(0,0,0,0.8)', 
+          backdropFilter: 'blur(10px)',
           padding: '16px 32px', 
           borderRadius: '30px', 
           color: 'white', 
@@ -158,11 +323,16 @@ export default function MediaPipePose({ initialPose = "Tree Pose", onExit }) {
           alignItems: 'center',
           gap: '12px',
           boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
-          transition: 'all 0.3s ease'
+          transition: 'all 0.3s ease',
+          maxWidth: '60%'
         }}>
           {isPerfect && <CheckCircle size={24} />}
           {feedback}
         </div>
+
+        <button className="btn-outline" onClick={handlePoseComplete} style={{ background: 'rgba(0,0,0,0.6)', color: 'white', border: '1px solid rgba(255,255,255,0.2)', backdropFilter: 'blur(10px)' }}>
+          Skip Pose <ChevronRight size={16} style={{ marginLeft: '8px' }}/>
+        </button>
       </div>
     </div>
   );

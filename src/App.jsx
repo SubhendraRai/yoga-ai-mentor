@@ -183,9 +183,9 @@ export default function App() {
           {currentPage === 'dashboard' && (
             <Dashboard 
               onNavigate={setCurrentPage} 
-              onStartSession={(pose) => {
-                setActiveSession([pose]);
-                setCurrentPage('yoga');
+              onStartSession={(poses) => {
+                setActiveSession(Array.isArray(poses) ? poses : [poses]);
+                setCurrentPage('pose'); // Route directly to AI coach!
               }}
               onLearnMore={(pose) => {
                 setSelectedPose(pose);
@@ -198,9 +198,9 @@ export default function App() {
             <PoseDetail 
               pose={selectedPose} 
               onBack={() => setCurrentPage('dashboard')} 
-              onStartSession={(pose) => {
-                setActiveSession([pose]);
-                setCurrentPage('yoga');
+              onStartSession={(poses) => {
+                setActiveSession(Array.isArray(poses) ? poses : [poses]);
+                setCurrentPage('pose'); // Route directly to AI coach!
               }}
             />
           )}
@@ -209,9 +209,9 @@ export default function App() {
             <div style={{ maxWidth: '800px', margin: '0 auto' }}>
               <WellnessPlan 
                 plan={WellnessMemory.getDailyPlan()} 
-                onStartSession={(pose) => {
-                  setActiveSession([pose]);
-                  setCurrentPage('yoga');
+                onStartSession={(poses) => {
+                  setActiveSession(Array.isArray(poses) ? poses : [poses]);
+                  setCurrentPage('pose'); // Route directly to AI coach!
                 }}
                 onLearnMore={(pose) => {
                   setSelectedPose(pose);
@@ -243,7 +243,7 @@ export default function App() {
               <button className="submit-btn" onClick={() => handleLogout()}>Sign Up Now</button>
             </div>
           ) : currentPage === 'pose' ? (
-            <MediaPipePose initialPose={poseCheckPose} onExit={() => setCurrentPage('yoga')} />
+            <MediaPipePose session={activeSession} initialPoseIndex={0} onExit={() => setCurrentPage('dashboard')} />
           ) : null}
           
           {currentPage === 'chat' && <MentorChat currentUser={currentUser} />}
