@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { ArrowLeft, CheckCircle, Activity, Timer, ChevronRight } from 'lucide-react';
 import { speechHelper } from '../lib/speech';
 import { analyzePose } from '../lib/poseAnalyzer';
@@ -42,6 +43,12 @@ export default function MediaPipePose({ session = [], initialPoseIndex = 0, onEx
     speechHelper.speak(`Next pose: ${currentPose.englishName}. Step into the frame.`);
   }, [currentIndex, currentPose]);
 
+  const currentIndexRef = useRef(currentIndex);
+  
+  useEffect(() => {
+    currentIndexRef.current = currentIndex;
+  }, [currentIndex]);
+
   // Main Timer Loop
   useEffect(() => {
     const tick = () => {
@@ -49,13 +56,13 @@ export default function MediaPipePose({ session = [], initialPoseIndex = 0, onEx
       const delta = (now - lastTickTime.current) / 1000;
       lastTickTime.current = now;
 
-      // Only count down if accuracy is >= 85%
       setHoldTimeLeft(prev => {
         if (accuracyRef.current >= 85 && prev > 0 && !sessionComplete) {
           const newTime = prev - delta;
           if (newTime <= 0) {
-            handlePoseComplete();
-            return 0;
+            // Use a timeout to prevent state update conflicts in requestAnimationFrame
+            setTimeout(() => handlePoseComplete(), 0);
+            return 30; // reset to 30 immediately to avoid repeated completions
           }
           return newTime;
         }
@@ -67,7 +74,7 @@ export default function MediaPipePose({ session = [], initialPoseIndex = 0, onEx
     
     requestRef.current = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(requestRef.current);
-  }, [accuracy, sessionComplete]);
+  }, [sessionComplete]);
 
   const handlePoseComplete = () => {
     playSound.chime();
@@ -240,7 +247,7 @@ export default function MediaPipePose({ session = [], initialPoseIndex = 0, onEx
   const strokeDashoffset = circumference - ((totalHoldTime - holdTimeLeft) / totalHoldTime) * circumference;
 
   if (sessionComplete) {
-    return (
+    return createPortal(
       <div style={{ position: 'fixed', top: 0, left: 0, height: '100vh', width: '100vw', zIndex: 9999, backgroundColor: 'var(--bg-primary)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
         <h2 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '42px', color: 'var(--accent-gold)', marginBottom: '16px' }}>Session Complete</h2>
         <div className="card" style={{ maxWidth: '400px', width: '100%', textAlign: 'center' }}>
@@ -261,11 +268,12 @@ export default function MediaPipePose({ session = [], initialPoseIndex = 0, onEx
           </div>
           <button className="submit-btn" onClick={onExit}>Return to Dashboard</button>
         </div>
-      </div>
+      </div>,
+      document.body
     );
   }
 
-  return (
+  return createPortal(
     <div style={{ position: 'fixed', top: 0, left: 0, zIndex: 9999, height: '100vh', width: '100vw', backgroundColor: '#000', overflow: 'hidden' }}>
       
       {/* Hidden Video Element */}
@@ -358,6 +366,7 @@ export default function MediaPipePose({ session = [], initialPoseIndex = 0, onEx
           Skip Pose <ChevronRight size={16} style={{ marginLeft: '8px' }}/>
         </button>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
