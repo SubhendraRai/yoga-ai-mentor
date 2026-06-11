@@ -6,6 +6,7 @@ import WellnessScore from './WellnessScore';
 import MoodTracker from './MoodTracker';
 import WellnessPlan from './WellnessPlan';
 import SkeletonLoader from './SkeletonLoader';
+import FeatureWalkthrough from './FeatureWalkthrough';
 import { Sparkles, Sun, Moon, Flower2, Camera, MessageCircle, MoonStar, Flame } from 'lucide-react';
 
 export default function Dashboard({ onNavigate, onStartSession, onLearnMore }) {
@@ -15,6 +16,7 @@ export default function Dashboard({ onNavigate, onStartSession, onLearnMore }) {
   const [showSleepLogger, setShowSleepLogger] = useState(false);
   const [sleepHours, setSleepHours] = useState(7);
   const [sleepQuality, setSleepQuality] = useState(3);
+  const [showWalkthrough, setShowWalkthrough] = useState(false);
   
   const profile = WellnessMemory.getProfile();
   const score = WellnessMemory.calculateWellnessScore();
@@ -33,8 +35,19 @@ export default function Dashboard({ onNavigate, onStartSession, onLearnMore }) {
       loadDashboardData();
     };
     window.addEventListener('wellness_synced', handleSync);
+
+    // Check if user has seen the walkthrough
+    if (!localStorage.getItem('wellness_has_seen_tour')) {
+      setShowWalkthrough(true);
+    }
+
     return () => window.removeEventListener('wellness_synced', handleSync);
   }, []);
+
+  const handleWalkthroughComplete = () => {
+    localStorage.setItem('wellness_has_seen_tour', 'true');
+    setShowWalkthrough(false);
+  };
 
   const loadDashboardData = async () => {
     const context = WellnessMemory.getContextForAI();
@@ -91,7 +104,14 @@ export default function Dashboard({ onNavigate, onStartSession, onLearnMore }) {
   };
 
   return (
-    <div className="dashboard-grid">
+    <div style={{ animation: 'fadeIn 0.5s ease', paddingBottom: '40px', position: 'relative' }}>
+      
+      {showWalkthrough && (
+        <FeatureWalkthrough onComplete={handleWalkthroughComplete} />
+      )}
+
+      {/* Header */}
+      <div className="dashboard-grid">
       {/* Greeting Banner */}
       <div className="dashboard-greeting">
         <h2 style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -155,7 +175,6 @@ export default function Dashboard({ onNavigate, onStartSession, onLearnMore }) {
       )}
 
       {/* AI Insight */}
-      <div className="card" style={{ background: 'linear-gradient(to right, var(--bg-secondary), var(--bg-tertiary))' }}>
         <div className="card-header" style={{ fontSize: '16px' }}>
           <Sparkles size={16} /> Your mentor noticed...
         </div>
