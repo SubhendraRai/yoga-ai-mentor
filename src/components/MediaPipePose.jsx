@@ -241,7 +241,7 @@ export default function MediaPipePose({ session = [], initialPoseIndex = 0, onEx
 
   if (sessionComplete) {
     return (
-      <div style={{ height: '100vh', width: '100vw', backgroundColor: 'var(--bg-primary)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
+      <div style={{ position: 'fixed', top: 0, left: 0, height: '100vh', width: '100vw', zIndex: 9999, backgroundColor: 'var(--bg-primary)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
         <h2 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '42px', color: 'var(--accent-gold)', marginBottom: '16px' }}>Session Complete</h2>
         <div className="card" style={{ maxWidth: '400px', width: '100%', textAlign: 'center' }}>
           <div style={{ fontSize: '64px', marginBottom: '16px' }}>🌟</div>
@@ -266,7 +266,7 @@ export default function MediaPipePose({ session = [], initialPoseIndex = 0, onEx
   }
 
   return (
-    <div style={{ height: '100vh', width: '100vw', backgroundColor: '#000', position: 'relative', overflow: 'hidden' }}>
+    <div style={{ position: 'fixed', top: 0, left: 0, zIndex: 9999, height: '100vh', width: '100vw', backgroundColor: '#000', overflow: 'hidden' }}>
       
       {/* Hidden Video Element */}
       <video ref={videoRef} style={{ display: 'none' }} playsInline></video>
