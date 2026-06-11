@@ -18,6 +18,8 @@ export default function MediaPipePose({ session = [], initialPoseIndex = 0, onEx
   const [accuracy, setAccuracy] = useState(0);
   const [isPerfect, setIsPerfect] = useState(false);
   
+  const safeSession = session || [];
+
   // Timer State
   const [holdTimeLeft, setHoldTimeLeft] = useState(0);
   const [sessionComplete, setSessionComplete] = useState(false);
@@ -31,7 +33,7 @@ export default function MediaPipePose({ session = [], initialPoseIndex = 0, onEx
   
   // Current pose data
   const defaultPose = { id: 'generic', englishName: "Free Practice", duration: 1, imageUrl: "https://placehold.co/800x600/13131a/c4a96a?text=Practice" };
-  const currentPose = session && session.length > currentIndex ? session[currentIndex] : defaultPose;
+  const currentPose = safeSession.length > currentIndex ? safeSession[currentIndex] : defaultPose;
 
   // Initialize timer when pose changes
   useEffect(() => {
@@ -89,11 +91,11 @@ export default function MediaPipePose({ session = [], initialPoseIndex = 0, onEx
 
   const finishSession = async () => {
     setSessionComplete(true);
-    const totalTimeSecs = Math.floor((Date.now() - sessionStartTime.current) / 1000);
-    const avgAcc = accuracyHistory.current.length ? 
-      Math.round(accuracyHistory.current.reduce((a, b) => a + b, 0) / accuracyHistory.current.length) : 0;
+    const totalTimeSecs = Math.round((Date.now() - sessionStartTime.current) / 1000);
+    const avgAcc = accuracyHistory.current.length > 0 
+      ? Math.round(accuracyHistory.current.reduce((a, b) => a + b, 0) / accuracyHistory.current.length) 
+      : 0;
     
-    // Get top 3 mistakes
     const commonMistakes = Object.entries(mistakesTracker.current)
       .sort((a, b) => b[1] - a[1])
       .slice(0, 3)
@@ -102,18 +104,18 @@ export default function MediaPipePose({ session = [], initialPoseIndex = 0, onEx
     const finalStats = {
       average_accuracy: avgAcc,
       total_time: totalTimeSecs,
-      completed_poses: session.length,
+      completed_poses: safeSession.length,
       common_mistakes: commonMistakes
     };
 
     setSessionStats({
       averageAccuracy: avgAcc,
       totalTime: totalTimeSecs,
-      totalPoses: session.length
+      totalPoses: safeSession.length
     });
 
     // Save to memory
-    await WellnessMemory.logActivity('ai_session', 'AI Coaching', `${session.length} Poses`, totalTimeSecs / 60);
+    await WellnessMemory.logActivity('ai_session', 'AI Coaching', `${safeSession.length} Poses`, totalTimeSecs / 60);
     await WellnessMemory.logSessionStats(finalStats);
 
     speechHelper.speak("Session complete! Excellent work today. I am analyzing your performance now.");
@@ -171,7 +173,7 @@ export default function MediaPipePose({ session = [], initialPoseIndex = 0, onEx
           window.drawConnectors(canvasCtx, results.poseLandmarks, window.POSE_CONNECTIONS, { color: 'rgba(255, 255, 255, 0.4)', lineWidth: 4 });
           window.drawLandmarks(canvasCtx, results.poseLandmarks, { color: 'var(--accent-gold)', lineWidth: 2, radius: 4 });
 
-          const activePoseId = session[currentIndexRef.current]?.id || 'generic';
+          const activePoseId = safeSession[currentIndexRef.current]?.id || 'generic';
           const analysis = analyzePose(results.poseLandmarks, activePoseId);
           
           accuracyRef.current = analysis.accuracy;
