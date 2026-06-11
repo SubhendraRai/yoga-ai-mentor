@@ -4,6 +4,7 @@ import { speechHelper } from '../lib/speech';
 import { analyzePose } from '../lib/poseAnalyzer';
 import { playSound } from '../lib/audio';
 import { WellnessMemory } from '../lib/wellnessMemory';
+import { generateSessionSummary } from '../lib/ai';
 
 export default function MediaPipePose({ session = [], initialPoseIndex = 0, onExit }) {
   const videoRef = useRef(null);
@@ -25,6 +26,7 @@ export default function MediaPipePose({ session = [], initialPoseIndex = 0, onEx
   const lastTickTime = useRef(Date.now());
   const accuracyRef = useRef(0);
   const lastUiUpdateTime = useRef(0);
+  const mistakesTracker = useRef({});
   
   // Current pose data
   const defaultPose = { id: 'generic', englishName: "Free Practice", duration: 1, imageUrl: "https://placehold.co/800x600/13131a/c4a96a?text=Practice" };
@@ -78,12 +80,25 @@ export default function MediaPipePose({ session = [], initialPoseIndex = 0, onEx
     }
   };
 
-  const finishSession = () => {
+  const finishSession = async () => {
     setSessionComplete(true);
     const totalTimeSecs = Math.floor((Date.now() - sessionStartTime.current) / 1000);
     const avgAcc = accuracyHistory.current.length ? 
       Math.round(accuracyHistory.current.reduce((a, b) => a + b, 0) / accuracyHistory.current.length) : 0;
     
+    // Get top 3 mistakes
+    const commonMistakes = Object.entries(mistakesTracker.current)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3)
+      .map(entry => entry[0]);
+
+    const finalStats = {
+      average_accuracy: avgAcc,
+      total_time: totalTimeSecs,
+      completed_poses: session.length,
+      common_mistakes: commonMistakes
+    };
+
     setSessionStats({
       averageAccuracy: avgAcc,
       totalTime: totalTimeSecs,
@@ -91,8 +106,15 @@ export default function MediaPipePose({ session = [], initialPoseIndex = 0, onEx
     });
 
     // Save to memory
-    WellnessMemory.logActivity('ai_session', 'AI Coaching', `${session.length} Poses`, totalTimeSecs / 60);
-    speechHelper.speak("Session complete! Excellent work today. You are building a strong foundation.");
+    await WellnessMemory.logActivity('ai_session', 'AI Coaching', `${session.length} Poses`, totalTimeSecs / 60);
+    await WellnessMemory.logSessionStats(finalStats);
+
+    speechHelper.speak("Session complete! Excellent work today. I am analyzing your performance now.");
+
+    // Generate post-session insight
+    const pastSessions = WellnessMemory.getSessionHistory(30);
+    const aiInsight = await generateSessionSummary(finalStats, pastSessions);
+    await WellnessMemory.addObservation(aiInsight);
   };
 
   // MediaPipe Initialization
@@ -162,6 +184,8 @@ export default function MediaPipePose({ session = [], initialPoseIndex = 0, onEx
               speechHelper.speak("Great posture. Hold it there.");
             } else if (analysis.accuracy > 0 && analysis.accuracy < 85) {
               speechHelper.speak(analysis.feedback);
+              // Track mistake frequencies
+              mistakesTracker.current[analysis.feedback] = (mistakesTracker.current[analysis.feedback] || 0) + 1;
             }
           }
 

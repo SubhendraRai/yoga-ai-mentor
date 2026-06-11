@@ -249,7 +249,6 @@ Guidelines:
 }
 
 export async function generateOnboardingProfile(onboardingData) {
-  // Replace 2000-token AI generation with deterministic rules engine!
   const name = onboardingData.name || 'Friend';
   const level = onboardingData.experience || 'Beginner';
   const goals = onboardingData.goals ? onboardingData.goals.join(', ') : 'wellness';
@@ -269,4 +268,32 @@ As a ${level} looking to focus on ${goals}, you are in a perfect starting positi
 Your first week will focus on exploration and building the habit. We will keep sessions relatively short and focus heavily on restorative and foundational postures so your body can adapt smoothly to the new routine. I am here to support you every step of the way!`;
 
   return { success: true, text };
+}
+
+/**
+ * Generate Post-Session Mentor Analysis.
+ */
+export async function generateSessionSummary(sessionData, previousSessions = []) {
+  let improvementContext = "This is their first session.";
+  if (previousSessions.length > 0) {
+    const avgPast = Math.round(previousSessions.reduce((acc, s) => acc + s.average_accuracy, 0) / previousSessions.length);
+    const diff = sessionData.average_accuracy - avgPast;
+    improvementContext = `Past average accuracy was ${avgPast}%. Today's accuracy was ${sessionData.average_accuracy}%. ${diff > 0 ? `Improvement of +${diff}%` : `Drop of ${diff}%`}.`;
+  }
+
+  const system = `You are an expert yoga mentor. Analyze this yoga session data and provide:
+1. Positive feedback.
+2. Key improvement areas.
+3. One motivational observation.
+4. One specific suggestion for next session.
+
+Keep response under 60 words.
+
+Historical context: ${improvementContext}
+Session Data: ${JSON.stringify(sessionData)}`;
+
+  const result = await callAI(system, [{ role: 'user', content: "Analyze my session." }]);
+  if (result.success) return result.text;
+  
+  return `You completed ${sessionData.completed_poses} poses today with ${sessionData.average_accuracy}% accuracy! Keep practicing consistently to see continuous improvements in your form and balance.`;
 }

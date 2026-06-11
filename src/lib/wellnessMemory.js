@@ -163,6 +163,32 @@ export const WellnessMemory = {
     return history.filter(h => new Date(h.timestamp) > cutoff);
   },
 
+  logSessionStats: async (stats) => {
+    const entry = { id: generateUUID(), ...stats, timestamp: new Date().toISOString() };
+    const history = WellnessMemory.getSessionHistory(30);
+    history.push(entry);
+    localStorage.setItem('wellness_sessions', JSON.stringify(history));
+
+    // Cloud Sync
+    const userId = await WellnessMemory.getUserId();
+    if (userId && userId !== 'guest') {
+      await supabase.from('wellness_logs').insert({
+        user_id: userId,
+        log_type: 'session_stats',
+        value: stats.average_accuracy,
+        note: JSON.stringify(stats)
+      });
+    }
+  },
+
+  getSessionHistory: (days = 30) => {
+    const history = JSON.parse(localStorage.getItem('wellness_sessions')) || [];
+    if (!days) return history;
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - days);
+    return history.filter(h => new Date(h.timestamp) > cutoff);
+  },
+
   getStreak: () => {
     const history = WellnessMemory.getActivityHistory(30);
     if (history.length === 0) return 0;
