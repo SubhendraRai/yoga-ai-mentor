@@ -37,9 +37,8 @@ export default function MediaPipePose({ session = [], initialPoseIndex = 0, onEx
 
   // Initialize timer when pose changes
   useEffect(() => {
-    setHoldTimeLeft(currentPose.duration * 60); // duration is usually minutes, let's assume it's minutes for yoga plan but maybe we just do 30 seconds for AI MVP?
-    // Let's force a 30 second hold for the AI MVP to make it testable, unless duration is specified in seconds.
-    setHoldTimeLeft(30); 
+    // Duration is 1-3. Let's make 1 duration unit = 15 seconds of hold time for the AI MVP
+    setHoldTimeLeft(currentPose.duration * 15);
     setAccuracy(0);
     setIsPerfect(false);
     speechHelper.speak(`Next pose: ${currentPose.englishName}. Step into the frame.`);
@@ -64,7 +63,7 @@ export default function MediaPipePose({ session = [], initialPoseIndex = 0, onEx
           if (newTime <= 0) {
             // Use a timeout to prevent state update conflicts in requestAnimationFrame
             setTimeout(() => handlePoseComplete(), 0);
-            return 30; // reset to 30 immediately to avoid repeated completions
+            return currentPose.duration * 15; // reset to full duration
           }
           return newTime;
         }
@@ -243,7 +242,7 @@ export default function MediaPipePose({ session = [], initialPoseIndex = 0, onEx
   // Calculate circular progress
   const radius = 30;
   const circumference = 2 * Math.PI * radius;
-  const totalHoldTime = 30; // MVP default
+  const totalHoldTime = currentPose.duration * 15;
   const strokeDashoffset = circumference - ((totalHoldTime - holdTimeLeft) / totalHoldTime) * circumference;
 
   if (sessionComplete) {

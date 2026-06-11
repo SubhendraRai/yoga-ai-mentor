@@ -33,6 +33,13 @@ function getAccuracy(current, ideal, tolerance = 45) {
 export function analyzePose(landmarks, poseId) {
   if (!landmarks || landmarks.length < 33) return { accuracy: 0, feedback: "Please step into the frame." };
 
+  // Check if lower body is visible enough to judge
+  const criticalLandmarks = [landmarks[23], landmarks[24], landmarks[25], landmarks[26], landmarks[27], landmarks[28]];
+  const invisibleCount = criticalLandmarks.filter(l => l && l.visibility < 0.5).length;
+  if (invisibleCount > 2) {
+    return { accuracy: 0, feedback: "Please step back. I can't see your full body." };
+  }
+
   // Common landmarks
   const lShoulder = landmarks[11];
   const rShoulder = landmarks[12];
