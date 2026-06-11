@@ -165,15 +165,13 @@ export default function MediaPipePose({ session = [], initialPoseIndex = 0, onEx
 
         canvasCtx.save();
         canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
-        canvasCtx.translate(canvasElement.width, 0);
-        canvasCtx.scale(-1, 1);
         canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
 
         if (results.poseLandmarks && window.drawConnectors && window.drawLandmarks) {
           window.drawConnectors(canvasCtx, results.poseLandmarks, window.POSE_CONNECTIONS, { color: 'rgba(255, 255, 255, 0.4)', lineWidth: 4 });
           window.drawLandmarks(canvasCtx, results.poseLandmarks, { color: 'var(--accent-gold)', lineWidth: 2, radius: 4 });
 
-          const activePoseId = session[currentIndex]?.id || 'generic';
+          const activePoseId = session[currentIndexRef.current]?.id || 'generic';
           const analysis = analyzePose(results.poseLandmarks, activePoseId);
           
           accuracyRef.current = analysis.accuracy;
@@ -209,7 +207,7 @@ export default function MediaPipePose({ session = [], initialPoseIndex = 0, onEx
       });
 
       poseObj.setOptions({
-        modelComplexity: 1,
+        modelComplexity: 0, // Lite model for maximum performance/parallel processing feel
         smoothLandmarks: true,
         enableSegmentation: false,
         minDetectionConfidence: 0.5,
