@@ -238,7 +238,7 @@ export default function MediaPipePose({ session = [], initialPoseIndex = 0, onEx
       if (poseObj) poseObj.close();
       speechHelper.cancel();
     };
-  }, [isLoaded, sessionComplete]); // Re-bind if session completes to stop processing
+  }, [sessionComplete]); // Removed isLoaded to prevent camera re-initialization crash
 
   // Calculate circular progress
   const radius = 30;
@@ -305,16 +305,18 @@ export default function MediaPipePose({ session = [], initialPoseIndex = 0, onEx
           </div>
 
           {/* Reference Pose PiP */}
-          <div style={{ width: '160px', height: '120px', borderRadius: '16px', overflow: 'hidden', border: '2px solid rgba(255,255,255,0.2)', background: '#111', position: 'relative', boxShadow: '0 8px 32px rgba(0,0,0,0.5)' }}>
-            <img 
-              src={currentPose.imageUrl || `https://placehold.co/800x600/13131a/c4a96a?text=${encodeURIComponent(currentPose.englishName)}`} 
-              alt={currentPose.englishName} 
-              style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
-            />
-            <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'rgba(0,0,0,0.8)', padding: '4px 8px', fontSize: '12px', color: 'white', textAlign: 'center' }}>
-              {currentPose.englishName}
+          {currentPose.id !== 'generic' && (
+            <div style={{ width: '160px', height: '120px', borderRadius: '16px', overflow: 'hidden', border: '2px solid rgba(255,255,255,0.2)', background: '#111', position: 'relative', boxShadow: '0 8px 32px rgba(0,0,0,0.5)' }}>
+              <img 
+                src={currentPose.imageUrl} 
+                alt={currentPose.englishName} 
+                style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+              />
+              <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'rgba(0,0,0,0.8)', padding: '4px 8px', fontSize: '12px', color: 'white', textAlign: 'center' }}>
+                {currentPose.englishName}
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
 
