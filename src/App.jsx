@@ -232,17 +232,7 @@ export default function App() {
             />
           )}
           
-          {currentPage === 'pose' && currentUser?.id === 'guest' ? (
-            <div className="card" style={{ maxWidth: '600px', margin: '100px auto', textAlign: 'center' }}>
-              <Lock size={48} style={{ color: 'var(--accent-gold)', margin: '0 auto 24px' }} />
-              <h2 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '28px', color: 'var(--text-primary)', marginBottom: '16px' }}>Live Coaching Locked</h2>
-              <p style={{ color: 'var(--text-secondary)', marginBottom: '24px' }}>
-                Guest accounts cannot access the advanced live computer vision and voice coaching features. 
-                Please sign up for a free account to unlock your personalized posture tracking!
-              </p>
-              <button className="submit-btn" onClick={() => handleLogout()}>Sign Up Now</button>
-            </div>
-          ) : currentPage === 'pose' ? (
+          {currentPage === 'pose' ? (
             <MediaPipePose session={activeSession} initialPoseIndex={0} onExit={() => setCurrentPage('dashboard')} />
           ) : null}
           
