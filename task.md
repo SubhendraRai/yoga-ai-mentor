@@ -1,0 +1,11 @@
+- `[x]` Copy and import redesigned codebase from Downloads
+- `[x]` Resolve dependencies by running `npm install`
+- `[x]` Implement visibility check in `poseAnalyzer.js` for better camera accuracy
+- `[x]` Implement `speakFeedbackThrottled` in `MediaPipePose.jsx` to fix AI voice stuttering
+- `[x]` Start and verify the development server (Vite at port 5173)
+- `[x]` Integrate `radial-orbital-timeline.tsx` in Next.js project
+- `[x]` Integrate `animated-shader-hero.tsx` in Next.js project
+- `[x]` Install required npm dependencies for Radix Slots
+- `[x]` Extend Next.js `globals.css` with animation properties
+- `[x]` Create active yoga routine flow using the radial orbital timeline
+- `[x]` Verify Next.js Turbopack compiler operates successfully (Next.js at port 3000)

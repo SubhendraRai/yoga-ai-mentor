@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import { WellnessMemory } from '../lib/wellnessMemory';
 import { generateMorningGreeting } from '../lib/ai';
 import { generateRuleBasedPlan } from '../lib/rulesEngine';
@@ -7,6 +8,9 @@ import MoodTracker from './MoodTracker';
 import WellnessPlan from './WellnessPlan';
 import SkeletonLoader from './SkeletonLoader';
 import FeatureWalkthrough from './FeatureWalkthrough';
+import MotionButton from './motion/MotionButton';
+import Reveal, { RevealGroup, revealItemVariants } from './motion/Reveal';
+import BreathDot from './motion/BreathDot';
 import { Sparkles, Sun, Moon, Flower2, Camera, MessageCircle, MoonStar, Flame } from 'lucide-react';
 
 export default function Dashboard({ onNavigate, onStartSession, onLearnMore }) {
@@ -17,7 +21,7 @@ export default function Dashboard({ onNavigate, onStartSession, onLearnMore }) {
   const [sleepHours, setSleepHours] = useState(7);
   const [sleepQuality, setSleepQuality] = useState(3);
   const [showWalkthrough, setShowWalkthrough] = useState(false);
-  
+
   const profile = WellnessMemory.getProfile();
   const score = WellnessMemory.calculateWellnessScore();
   const streak = WellnessMemory.getStreak();
@@ -28,7 +32,7 @@ export default function Dashboard({ onNavigate, onStartSession, onLearnMore }) {
 
   useEffect(() => {
     loadDashboardData();
-    
+
     // Re-render when cloud sync finishes pulling new data
     const handleSync = () => {
       // Force a re-fetch of local data by re-running loadDashboardData
@@ -51,12 +55,12 @@ export default function Dashboard({ onNavigate, onStartSession, onLearnMore }) {
 
   const loadDashboardData = async () => {
     const context = WellnessMemory.getContextForAI();
-    
+
     // Greeting (Daily Cache)
     const todayStr = new Date().toISOString().split('T')[0];
     const cachedGreeting = localStorage.getItem('wellness_greeting');
     const greetingDate = localStorage.getItem('wellness_greeting_date');
-    
+
     if (cachedGreeting && greetingDate === todayStr) {
       setGreeting(cachedGreeting);
     } else {
@@ -85,13 +89,13 @@ export default function Dashboard({ onNavigate, onStartSession, onLearnMore }) {
     // Use deterministic rules engine instead of AI!
     const sleepHist = WellnessMemory.getSleepHistory(7);
     const moodHist = WellnessMemory.getMoodHistory(7);
-    
+
     const ruleBasedPlan = generateRuleBasedPlan(currentProfile, moodHist, sleepHist);
     const planString = JSON.stringify(ruleBasedPlan);
-    
+
     setPlan(planString);
     WellnessMemory.saveDailyPlan(planString);
-    
+
     // Simulate slight loading delay for UX
     setTimeout(() => {
       setLoadingPlan(false);
@@ -103,115 +107,167 @@ export default function Dashboard({ onNavigate, onStartSession, onLearnMore }) {
     setShowSleepLogger(false);
   };
 
+  const quickActions = [
+    { id: 'yoga', label: 'Start yoga', icon: Flower2, action: () => onNavigate('yoga') },
+    { id: 'pose', label: 'Pose check', icon: Camera, action: () => onNavigate('pose') },
+    { id: 'chat', label: 'Talk to mentor', icon: MessageCircle, action: () => onNavigate('chat') },
+    { id: 'sleep', label: 'Log sleep', icon: MoonStar, action: () => setShowSleepLogger(true) },
+  ];
+
   return (
-    <div style={{ animation: 'fadeIn 0.5s ease', paddingBottom: '40px', position: 'relative' }}>
-      
-      {showWalkthrough && (
-        <FeatureWalkthrough onComplete={handleWalkthroughComplete} />
-      )}
+    <div className="relative pb-10">
+      {showWalkthrough && <FeatureWalkthrough onComplete={handleWalkthroughComplete} />}
 
-      {/* Header */}
-      <div className="dashboard-grid">
-      {/* Greeting Banner */}
-      <div className="dashboard-greeting">
-        <h2 style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          {isAM ? <Sun style={{ color: '#e8c44a' }} /> : <Moon style={{ color: '#8892b0' }} />}
-          {greeting || <SkeletonLoader type="title" />}
-        </h2>
-      </div>
-
-      {/* Stats Row */}
-      <div className="stats-row">
-        <WellnessScore score={score.total} breakdown={{ physical: score.activityScore, mental: score.moodScore, consistency: score.sleepScore }} />
-        <MoodTracker compact={true} />
-        
-        <div className="card-sm" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center' }}>
-          <div className="card-header" style={{ fontSize: '15px', marginBottom: '8px' }}>Current Streak</div>
-          <Flame size={48} style={{ color: streak > 0 ? '#e07070' : 'var(--border-color)', margin: '16px 0' }} />
-          <div style={{ fontSize: '32px', fontFamily: "'Cormorant Garamond', serif", color: 'var(--accent-gold)' }}>{streak}</div>
-          <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Days Active</div>
-        </div>
-      </div>
-
-      {/* Quick Actions */}
-      <div className="quick-actions">
-        <button className="action-btn" onClick={() => onNavigate('yoga')}>
-          <Flower2 size={24} />
-          <span>Start Yoga</span>
-        </button>
-        <button className="action-btn" onClick={() => onNavigate('pose')}>
-          <Camera size={24} />
-          <span>Pose Check</span>
-        </button>
-        <button className="action-btn" onClick={() => onNavigate('chat')}>
-          <MessageCircle size={24} />
-          <span>Talk to Mentor</span>
-        </button>
-        <button className="action-btn" onClick={() => setShowSleepLogger(true)}>
-          <MoonStar size={24} />
-          <span>Log Sleep</span>
-        </button>
-      </div>
-
-      {/* Sleep Logger Inline Modal */}
-      {showSleepLogger && (
-        <div className="card" style={{ animation: 'fadeUp 0.3s ease' }}>
-          <div className="card-header">Log Last Night's Sleep</div>
-          <div className="row">
-            <div className="field">
-              <label>Hours Slept: {sleepHours}h</label>
-              <input type="range" min="1" max="14" step="0.5" value={sleepHours} onChange={e => setSleepHours(Number(e.target.value))} />
-            </div>
-            <div className="field">
-              <label>Quality (1-5): {sleepQuality}</label>
-              <input type="range" min="1" max="5" value={sleepQuality} onChange={e => setSleepQuality(Number(e.target.value))} />
-            </div>
-          </div>
-          <div style={{ display: 'flex', gap: '12px', marginTop: '16px' }}>
-            <button className="btn-outline" onClick={() => setShowSleepLogger(false)}>Cancel</button>
-            <button className="submit-btn" style={{ marginTop: 0 }} onClick={handleLogSleep}>Save Sleep Log</button>
+      {/* Greeting */}
+      <Reveal>
+        <div className="flex items-center justify-between gap-4 mb-7">
+          <h1 className="flex items-center gap-3 font-display text-[28px] sm:text-[32px] font-medium text-ink">
+            <motion.span
+              animate={{ rotate: isAM ? [0, 8, 0] : [0, -6, 0] }}
+              transition={{ duration: 4.5, repeat: Infinity, ease: [0.45, 0, 0.2, 1] }}
+              className={isAM ? 'text-clay' : 'text-mist'}
+            >
+              {isAM ? <Sun size={26} /> : <Moon size={26} />}
+            </motion.span>
+            {greeting || <SkeletonLoader type="title" />}
+          </h1>
+          <div className="hidden sm:flex items-center gap-2 text-[12px] text-text-secondary shrink-0">
+            <BreathDot />
+            present &amp; synced
           </div>
         </div>
-      )}
+      </Reveal>
 
-      {/* AI Insight */}
-        <div className="card-header" style={{ fontSize: '16px' }}>
-          <Sparkles size={16} /> Your mentor noticed...
-        </div>
-        <p style={{ color: 'var(--text-body)', fontSize: '14px', lineHeight: '1.6' }}>
-          {latestObservation}
-        </p>
-      </div>
-
-      {/* Plan */}
-      <div className="card plan-card" style={{ gridColumn: '1 / -1' }}>
-        <div className="card-header">
-          <h3><Sparkles size={20} className="icon-gold" /> Today's Recommended Flow</h3>
-        </div>
-        {loadingPlan ? (
-          <div style={{ padding: '20px' }}>
-            <SkeletonLoader type="text" count={2} />
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginTop: '24px' }}>
-              <SkeletonLoader type="pose" />
-              <SkeletonLoader type="pose" />
-            </div>
-          </div>
-        ) : plan ? (
-          <WellnessPlan 
-            plan={plan} 
-            onRegenerate={() => handleGeneratePlan()} 
-            onStartSession={onStartSession}
-            onLearnMore={onLearnMore}
+      {/* Hero row: score (left, 2/3) + streak/insight rail (right, 1/3) */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-5">
+        <Reveal delay={0.05} className="lg:col-span-2">
+          <WellnessScore
+            score={score.total}
+            breakdown={{ physical: score.activityScore, mental: score.moodScore, consistency: score.sleepScore }}
           />
-        ) : (
-          <div style={{ padding: '24px', textAlign: 'center' }}>
-            <p style={{ marginBottom: '16px', color: 'var(--text-secondary)' }}>We couldn't generate your plan right now.</p>
-            <button className="submit-btn" onClick={() => handleGeneratePlan()} style={{ maxWidth: '200px', margin: '0 auto' }}>
-              Try Again
-            </button>
-          </div>
-        )}
+        </Reveal>
+
+        <div className="flex flex-col gap-5">
+          <Reveal delay={0.1}>
+            <div className="relative overflow-hidden rounded-[28px] bg-white/95 border border-canvas-deep px-6 py-6 text-center shadow-[0_8px_32px_rgba(31,43,34,0.06)]">
+              <p className="text-[12px] uppercase tracking-[0.18em] text-moss-deep/70 font-medium mb-3">
+                Current streak
+              </p>
+              <motion.div
+                animate={{ scale: [1, 1.06, 1] }}
+                transition={{ duration: 4.5, repeat: Infinity, ease: [0.45, 0, 0.2, 1] }}
+                className="inline-flex"
+              >
+                <Flame size={40} className={streak > 0 ? 'text-clay' : 'text-canvas-deep'} />
+              </motion.div>
+              <div className="font-display text-[34px] text-ink mt-2 leading-none">{streak}</div>
+              <div className="text-[11px] text-text-secondary uppercase tracking-[0.1em] mt-1">days active</div>
+            </div>
+          </Reveal>
+
+          <Reveal delay={0.15}>
+            <MoodTracker compact={true} />
+          </Reveal>
+        </div>
       </div>
+
+      {/* Quick actions */}
+      <RevealGroup className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+        {quickActions.map(({ id, label, icon: Icon, action }) => (
+          <motion.button
+            key={id}
+            variants={revealItemVariants}
+            onClick={action}
+            whileHover={{ y: -3, scale: 1.02 }}
+            whileTap={{ scale: 0.97 }}
+            transition={{ duration: 0.25, ease: [0.45, 0, 0.2, 1] }}
+            className="flex flex-col items-center gap-2 rounded-2xl bg-white/90 border border-canvas-deep px-4 py-5 text-text-secondary hover:text-moss-deep hover:border-moss/30 transition-colors duration-300 shadow-[0_4px_16px_rgba(31,43,34,0.04)]"
+          >
+            <Icon size={22} />
+            <span className="text-[12px] font-medium">{label}</span>
+          </motion.button>
+        ))}
+      </RevealGroup>
+
+      {/* Sleep logger inline */}
+      {showSleepLogger && (
+        <motion.div
+          initial={{ opacity: 0, height: 0 }}
+          animate={{ opacity: 1, height: 'auto' }}
+          exit={{ opacity: 0, height: 0 }}
+          transition={{ duration: 0.35, ease: [0.45, 0, 0.2, 1] }}
+          className="rounded-[24px] bg-white/95 border border-canvas-deep p-6 mb-6 overflow-hidden shadow-[0_8px_32px_rgba(31,43,34,0.06)]"
+        >
+          <h3 className="font-display text-[19px] text-moss-deep mb-4">Log last night&rsquo;s sleep</h3>
+          <div className="grid sm:grid-cols-2 gap-5 mb-5">
+            <div>
+              <label className="block text-[11px] uppercase tracking-[0.1em] text-text-secondary mb-2">
+                Hours slept: {sleepHours}h
+              </label>
+              <input
+                type="range" min="1" max="14" step="0.5" value={sleepHours}
+                onChange={e => setSleepHours(Number(e.target.value))}
+                className="w-full accent-moss"
+              />
+            </div>
+            <div>
+              <label className="block text-[11px] uppercase tracking-[0.1em] text-text-secondary mb-2">
+                Quality (1–5): {sleepQuality}
+              </label>
+              <input
+                type="range" min="1" max="5" value={sleepQuality}
+                onChange={e => setSleepQuality(Number(e.target.value))}
+                className="w-full accent-moss"
+              />
+            </div>
+          </div>
+          <div className="flex gap-3">
+            <MotionButton variant="outline" onClick={() => setShowSleepLogger(false)}>Cancel</MotionButton>
+            <MotionButton onClick={handleLogSleep}>Save sleep log</MotionButton>
+          </div>
+        </motion.div>
+      )}
+
+      {/* Mentor insight */}
+      <Reveal delay={0.1}>
+        <div className="rounded-[24px] bg-moss/5 border border-moss/15 px-6 py-5 mb-6 flex gap-3 items-start">
+          <Sparkles size={16} className="text-moss mt-0.5 shrink-0" />
+          <div>
+            <p className="text-[13px] font-medium text-moss-deep mb-1">Your mentor noticed…</p>
+            <p className="text-[14px] leading-relaxed text-text-body">{latestObservation}</p>
+          </div>
+        </div>
+      </Reveal>
+
+      {/* Today's plan */}
+      <Reveal delay={0.15}>
+        <div className="rounded-[28px] bg-white/95 border border-canvas-deep p-6 sm:p-8 shadow-[0_8px_32px_rgba(31,43,34,0.06)]">
+          <h2 className="flex items-center gap-2 font-display text-[22px] text-ink mb-6">
+            <Sparkles size={18} className="text-clay" /> Today&rsquo;s recommended flow
+          </h2>
+          {loadingPlan ? (
+            <div>
+              <SkeletonLoader type="text" count={2} />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-6">
+                <SkeletonLoader type="pose" />
+                <SkeletonLoader type="pose" />
+              </div>
+            </div>
+          ) : plan ? (
+            <WellnessPlan
+              plan={plan}
+              onRegenerate={() => handleGeneratePlan()}
+              onStartSession={onStartSession}
+              onLearnMore={onLearnMore}
+            />
+          ) : (
+            <div className="text-center py-6">
+              <p className="text-text-secondary mb-4">We couldn&rsquo;t generate your plan right now.</p>
+              <MotionButton onClick={() => handleGeneratePlan()}>Try again</MotionButton>
+            </div>
+          )}
+        </div>
+      </Reveal>
     </div>
   );
 }

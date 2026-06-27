@@ -7,12 +7,40 @@ import { playSound } from '../lib/audio';
 import { WellnessMemory } from '../lib/wellnessMemory';
 import { generateSessionSummary } from '../lib/ai';
 
+// Mapping indices to human-friendly key joint names
+const KEY_JOINTS = {
+  11: "left shoulder",
+  12: "right shoulder",
+  13: "left elbow",
+  14: "right elbow",
+  15: "left wrist",
+  16: "right wrist",
+  23: "left hip",
+  24: "right hip",
+  25: "left knee",
+  26: "right knee",
+  27: "left ankle",
+  28: "right ankle"
+};
+
+// Retrieve key joints monitored for the active pose ID
+const GET_POSE_KEY_JOINTS = (poseId) => {
+  switch (poseId) {
+    case 'warrior_ii': return [11, 12, 13, 14, 15, 16, 23, 24, 25, 26, 27, 28];
+    case 'downward_dog': return [11, 12, 15, 16, 23, 24, 25, 26, 27, 28];
+    case 'tree_pose': return [11, 12, 23, 24, 25, 26, 27, 28];
+    case 'cat_cow': return [11, 12, 13, 14, 15, 16, 23, 24, 25, 26];
+    case 'savasana': return [11, 12, 23, 24, 25, 26, 27, 28];
+    case 'childs_pose': return [11, 12, 15, 16, 23, 24, 27, 28];
+    default: return [];
+  }
+};
+
 export default function MediaPipePose({ session = [], initialPoseIndex = 0, onExit }) {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const requestRef = useRef(null);
-  
-  const [isLoaded, setIsLoaded] = useState(false);
+  const isLoadedRef = useRef(false);
   const [currentIndex, setCurrentIndex] = useState(initialPoseIndex);
   const [feedback, setFeedback] = useState("Initializing camera...");
   const [accuracy, setAccuracy] = useState(0);
@@ -30,6 +58,80 @@ export default function MediaPipePose({ session = [], initialPoseIndex = 0, onEx
   const accuracyRef = useRef(0);
   const lastUiUpdateTime = useRef(0);
   const mistakesTracker = useRef({});
+
+  // Concurrency & Lifecycle Refs to prevent WebAssembly stack crashes and leaks
+  const cameraRef = useRef(null);
+  const poseInstanceRef = useRef(null);
+  const isUnmountedRef = useRef(false);
+  const isProcessingRef = useRef(false);
+
+  // EMA Coordinate & Visibility Smoothing history
+  const prevLandmarksRef = useRef(null);
+
+  // Landmark visibility grace period / hysteresis tracker
+  const lowVisibilityStartTimesRef = useRef({});
+  const actualSmoothedVisibilityRef = useRef({});
+
+  // Diagnostic Stats & Debug HUD State
+  const [showDebug, setShowDebug] = useState(false);
+  const [debugStats, setDebugStats] = useState({
+    cameraFps: 0,
+    poseFps: 0,
+    received: 0,
+    processed: 0,
+    dropped: 0,
+    poseDetected: false,
+    avgVisibility: 0,
+    lowestJointName: 'N/A',
+    lowestJointVis: 0,
+    poseLossReason: 'Initializing...',
+    lastValidSecsAgo: 'Never'
+  });
+
+  // Frames counters
+  const framesReceivedCountRef = useRef(0);
+  const framesProcessedCountRef = useRef(0);
+  const framesDroppedCountRef = useRef(0);
+  
+  const cameraFramesCount = useRef(0);
+  const lastCameraFpsTime = useRef(Date.now());
+  const currentCameraFps = useRef(0);
+
+  const poseFramesCount = useRef(0);
+  const lastPoseFpsTime = useRef(Date.now());
+  const currentPoseFps = useRef(0);
+
+  const lastValidPoseTimeRef = useRef(null);
+  
+  // Speech Throttling State to fix machine-gun stuttering
+  const lastSpokenTextRef = useRef("");
+  const lastSpokenTimeRef = useRef(0);
+
+  const speakFeedbackThrottled = (text, force = false) => {
+    const now = Date.now();
+    const timeSinceLastSpeech = now - lastSpokenTimeRef.current;
+
+    if (force) {
+      speechHelper.speak(text, true);
+      lastSpokenTextRef.current = text;
+      lastSpokenTimeRef.current = now;
+      return;
+    }
+
+    // Do not repeat the exact same feedback within 7 seconds
+    if (text === lastSpokenTextRef.current && timeSinceLastSpeech < 7000) {
+      return;
+    }
+
+    // Avoid speaking anything new if it has been less than 4.5 seconds since last speech started
+    if (timeSinceLastSpeech < 4500) {
+      return;
+    }
+
+    speechHelper.speak(text);
+    lastSpokenTextRef.current = text;
+    lastSpokenTimeRef.current = now;
+  };
   
   // Current pose data
   const defaultPose = { id: 'generic', englishName: "Free Practice", duration: 1, imageUrl: "https://placehold.co/800x600/13131a/c4a96a?text=Practice" };
@@ -37,11 +139,13 @@ export default function MediaPipePose({ session = [], initialPoseIndex = 0, onEx
 
   // Initialize timer when pose changes
   useEffect(() => {
-    // Duration is 1-3. Let's make 1 duration unit = 15 seconds of hold time for the AI MVP
     setHoldTimeLeft(currentPose.duration * 15);
     setAccuracy(0);
     setIsPerfect(false);
-    speechHelper.speak(`Next pose: ${currentPose.englishName}. Step into the frame.`);
+    lastValidPoseTimeRef.current = null;
+    prevLandmarksRef.current = null;
+    lowVisibilityStartTimesRef.current = {};
+    speakFeedbackThrottled(`Next pose: ${currentPose.englishName}. Step into the frame.`, true);
   }, [currentIndex, currentPose]);
 
   const currentIndexRef = useRef(currentIndex);
@@ -58,14 +162,25 @@ export default function MediaPipePose({ session = [], initialPoseIndex = 0, onEx
       lastTickTime.current = now;
 
       setHoldTimeLeft(prev => {
-        if (accuracyRef.current >= 85 && prev > 0 && !sessionComplete) {
-          const newTime = prev - delta;
-          if (newTime <= 0) {
-            // Use a timeout to prevent state update conflicts in requestAnimationFrame
-            setTimeout(() => handlePoseComplete(), 0);
-            return currentPose.duration * 15; // reset to full duration
+        const isTrackingValid = accuracyRef.current >= 85;
+        if (isTrackingValid) {
+          lastValidPoseTimeRef.current = now;
+          if (prev > 0 && !sessionComplete) {
+            const newTime = prev - delta;
+            if (newTime <= 0) {
+              // Use a timeout to prevent state update conflicts in requestAnimationFrame
+              setTimeout(() => handlePoseComplete(), 0);
+              return currentPose.duration * 15; // reset to full duration
+            }
+            return newTime;
           }
-          return newTime;
+        } else {
+          // If tracking is lost and it has been more than 2 seconds since last valid pose
+          const timeSinceLastValid = lastValidPoseTimeRef.current ? (now - lastValidPoseTimeRef.current) : Infinity;
+          if (timeSinceLastValid > 2000 && prev < currentPose.duration * 15) {
+            // Reset to full duration
+            return currentPose.duration * 15;
+          }
         }
         return prev;
       });
@@ -75,13 +190,13 @@ export default function MediaPipePose({ session = [], initialPoseIndex = 0, onEx
     
     requestRef.current = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(requestRef.current);
-  }, [sessionComplete]);
+  }, [sessionComplete, currentPose.id, currentPose.duration]);
 
   const handlePoseComplete = () => {
     playSound.chime();
-    speechHelper.speak("Pose completed successfully. Great job.", true);
+    speakFeedbackThrottled("Pose completed successfully. Great job.", true);
     
-    if (currentIndex < session.length - 1) {
+    if (currentIndexRef.current < safeSession.length - 1) {
       setCurrentIndex(prev => prev + 1);
     } else {
       finishSession();
@@ -117,7 +232,7 @@ export default function MediaPipePose({ session = [], initialPoseIndex = 0, onEx
     await WellnessMemory.logActivity('ai_session', 'AI Coaching', `${safeSession.length} Poses`, totalTimeSecs / 60);
     await WellnessMemory.logSessionStats(finalStats);
 
-    speechHelper.speak("Session complete! Excellent work today. I am analyzing your performance now.");
+    speakFeedbackThrottled("Session complete! Excellent work today. I am analyzing your performance now.", true);
 
     // Generate post-session insight
     const pastSessions = WellnessMemory.getSessionHistory(30);
@@ -127,6 +242,8 @@ export default function MediaPipePose({ session = [], initialPoseIndex = 0, onEx
 
   // MediaPipe Initialization
   useEffect(() => {
+    isUnmountedRef.current = false;
+
     const loadScript = (src) => new Promise((resolve, reject) => {
       if (document.querySelector(`script[src="${src}"]`)) return resolve();
       const script = document.createElement('script');
@@ -137,14 +254,15 @@ export default function MediaPipePose({ session = [], initialPoseIndex = 0, onEx
       document.body.appendChild(script);
     });
 
-    let camera = null;
-    let poseObj = null;
-
     async function initMediaPipe() {
       try {
         await loadScript('https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js');
+        if (isUnmountedRef.current) return;
         await loadScript('https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js');
+        if (isUnmountedRef.current) return;
         await loadScript('https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js');
+        if (isUnmountedRef.current) return;
+        
         startCamera();
       } catch (e) {
         console.error("Failed to load MediaPipe:", e);
@@ -153,32 +271,107 @@ export default function MediaPipePose({ session = [], initialPoseIndex = 0, onEx
     }
 
     function startCamera() {
+      if (isUnmountedRef.current) return;
+
       const videoElement = videoRef.current;
       const canvasElement = canvasRef.current;
       if (!canvasElement) return;
       const canvasCtx = canvasElement.getContext('2d');
 
       function onResults(results) {
-        if (!isLoaded) {
-          setIsLoaded(true);
-          setFeedback("Camera ready. Analyzing posture...");
+        if (isUnmountedRef.current) return;
+
+        if (!isLoadedRef.current) {
+          isLoadedRef.current = true;
+        }
+
+        // Inference FPS tracking
+        const now = Date.now();
+        poseFramesCount.current += 1;
+        if (now - lastPoseFpsTime.current > 1000) {
+          currentPoseFps.current = Math.round((poseFramesCount.current * 1000) / (now - lastPoseFpsTime.current));
+          poseFramesCount.current = 0;
+          lastPoseFpsTime.current = now;
         }
 
         canvasCtx.save();
         canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
         canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
 
-        if (results.poseLandmarks && window.drawConnectors && window.drawLandmarks) {
-          window.drawConnectors(canvasCtx, results.poseLandmarks, window.POSE_CONNECTIONS, { color: 'rgba(255, 255, 255, 0.4)', lineWidth: 4 });
-          window.drawLandmarks(canvasCtx, results.poseLandmarks, { color: 'var(--accent-gold)', lineWidth: 2, radius: 4 });
+        // Apply EMA Coordinate & Visibility Smoothing (alpha = 0.4 for smooth yoga poses)
+        let smoothedLandmarks = null;
+        if (results.poseLandmarks) {
+          const alpha = 0.4;
+          if (!prevLandmarksRef.current) {
+            prevLandmarksRef.current = JSON.parse(JSON.stringify(results.poseLandmarks));
+          } else {
+            prevLandmarksRef.current = results.poseLandmarks.map((lm, i) => {
+              const prevLm = prevLandmarksRef.current[i] || lm;
+              return {
+                x: lm.x * alpha + prevLm.x * (1 - alpha),
+                y: lm.y * alpha + prevLm.y * (1 - alpha),
+                z: lm.z * alpha + prevLm.z * (1 - alpha),
+                visibility: lm.visibility * alpha + prevLm.visibility * (1 - alpha)
+              };
+            });
+          }
 
-          const activePoseId = safeSession[currentIndexRef.current]?.id || 'generic';
-          const analysis = analyzePose(results.poseLandmarks, activePoseId);
-          
+          // Deep clone smoothed landmarks to apply grace-period/hysteresis visibility adjustments
+          smoothedLandmarks = JSON.parse(JSON.stringify(prevLandmarksRef.current));
+
+          // Record true smoothed visibility and apply 400ms grace period visibility hysteresis
+          smoothedLandmarks.forEach((lm, i) => {
+            actualSmoothedVisibilityRef.current[i] = lm.visibility;
+            if (lm.visibility < 0.5) {
+              if (!lowVisibilityStartTimesRef.current[i]) {
+                lowVisibilityStartTimesRef.current[i] = now;
+              }
+              const elapsed = now - lowVisibilityStartTimesRef.current[i];
+              if (elapsed < 400) {
+                // Temporarily bypass immediate joint tracking loss
+                lm.visibility = 0.51;
+              }
+            } else {
+              delete lowVisibilityStartTimesRef.current[i];
+            }
+          });
+        } else {
+          prevLandmarksRef.current = null;
+        }
+
+        const activePoseId = safeSession[currentIndexRef.current]?.id || 'generic';
+
+        if (smoothedLandmarks && window.drawConnectors && window.drawLandmarks) {
+          window.drawConnectors(canvasCtx, smoothedLandmarks, window.POSE_CONNECTIONS, { color: 'rgba(255, 255, 255, 0.4)', lineWidth: 4 });
+          window.drawLandmarks(canvasCtx, smoothedLandmarks, { color: 'var(--accent-gold)', lineWidth: 2, radius: 4 });
+
+          const analysis = analyzePose(smoothedLandmarks, activePoseId);
           accuracyRef.current = analysis.accuracy;
 
-          // Throttle React UI updates to ~5 times a second to prevent lag
-          const now = Date.now();
+          // Compute diagnostic statistics for active key joints
+          const activeKeyJoints = GET_POSE_KEY_JOINTS(activePoseId);
+          let avgVis = 0;
+          let lowestVis = 1.0;
+          let lowestJoint = 'None';
+          
+          if (smoothedLandmarks.length > 0) {
+            let visSum = 0;
+            smoothedLandmarks.forEach((lm) => {
+              visSum += lm.visibility || 0;
+            });
+            avgVis = visSum / smoothedLandmarks.length;
+
+            const jointsToScan = activeKeyJoints.length > 0 ? activeKeyJoints : Array.from({length: 33}, (_, i) => i);
+            jointsToScan.forEach(idx => {
+              const vis = actualSmoothedVisibilityRef.current[idx] !== undefined ? actualSmoothedVisibilityRef.current[idx] : (smoothedLandmarks[idx]?.visibility || 0);
+              if (vis < lowestVis) {
+                lowestVis = vis;
+                lowestJoint = KEY_JOINTS[idx] || `joint ${idx}`;
+              }
+            });
+          }
+
+          // Throttle React UI and Debug HUD updates to ~5 FPS to eliminate rendering lag
           if (now - lastUiUpdateTime.current > 200) {
             lastUiUpdateTime.current = now;
             setAccuracy(analysis.accuracy);
@@ -186,58 +379,160 @@ export default function MediaPipePose({ session = [], initialPoseIndex = 0, onEx
             setFeedback(analysis.feedback);
             setIsPerfect(analysis.accuracy >= 85);
 
+            // Determine pose loss reason
+            let poseLossReason = 'None';
+            let missingJoint = null;
+            for (const idx of activeKeyJoints) {
+              const vis = actualSmoothedVisibilityRef.current[idx];
+              if (vis < 0.5) {
+                const durationBelow = lowVisibilityStartTimesRef.current[idx] ? (now - lowVisibilityStartTimesRef.current[idx]) : 0;
+                if (durationBelow >= 400) {
+                  missingJoint = KEY_JOINTS[idx] || `joint ${idx}`;
+                  break;
+                }
+              }
+            }
+
+            if (missingJoint) {
+              poseLossReason = `Missing joint: ${missingJoint}`;
+            } else if (analysis.accuracy < 85) {
+              poseLossReason = `Poor alignment: ${analysis.feedback}`;
+            }
+
+            const lastValidSecs = lastValidPoseTimeRef.current 
+              ? `${((now - lastValidPoseTimeRef.current) / 1000).toFixed(1)}s ago`
+              : 'Never';
+
+            setDebugStats({
+              cameraFps: currentCameraFps.current,
+              poseFps: currentPoseFps.current,
+              received: framesReceivedCountRef.current,
+              processed: framesProcessedCountRef.current,
+              dropped: framesDroppedCountRef.current,
+              poseDetected: true,
+              avgVisibility: avgVis,
+              lowestJointName: lowestJoint,
+              lowestJointVis: lowestVis,
+              poseLossReason: poseLossReason,
+              lastValidSecsAgo: analysis.accuracy >= 85 ? 'Active' : lastValidSecs
+            });
+
             if (analysis.accuracy >= 85) {
-              speechHelper.speak("Great posture. Hold it there.");
+              speakFeedbackThrottled("Great posture. Hold it there.");
             } else if (analysis.accuracy > 0 && analysis.accuracy < 85) {
-              speechHelper.speak(analysis.feedback);
-              // Track mistake frequencies
+              speakFeedbackThrottled(analysis.feedback);
               mistakesTracker.current[analysis.feedback] = (mistakesTracker.current[analysis.feedback] || 0) + 1;
             }
           }
 
         } else if (!results.poseLandmarks) {
-          setAccuracy(0);
-          setFeedback("No pose detected. Step into the frame.");
-          setIsPerfect(false);
+          // No landmarks detected - update accuracy & reasons within the 5 FPS throttled block
+          if (now - lastUiUpdateTime.current > 200) {
+            lastUiUpdateTime.current = now;
+            setAccuracy(0);
+            setFeedback("No pose detected. Step into the frame.");
+            setIsPerfect(false);
+
+            const lastValidSecs = lastValidPoseTimeRef.current 
+              ? `${((now - lastValidPoseTimeRef.current) / 1000).toFixed(1)}s ago`
+              : 'Never';
+
+            setDebugStats(prev => ({
+              ...prev,
+              cameraFps: currentCameraFps.current,
+              poseFps: currentPoseFps.current,
+              received: framesReceivedCountRef.current,
+              processed: framesProcessedCountRef.current,
+              dropped: framesDroppedCountRef.current,
+              poseDetected: false,
+              avgVisibility: 0,
+              lowestJointName: 'N/A',
+              lowestJointVis: 0,
+              poseLossReason: 'No user detected in camera frame',
+              lastValidSecsAgo: lastValidSecs
+            }));
+          }
         }
         canvasCtx.restore();
       }
 
-      poseObj = new window.Pose({
+      poseInstanceRef.current = new window.Pose({
         locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`
       });
 
-      poseObj.setOptions({
-        modelComplexity: 0, // Lite model for maximum performance/parallel processing feel
+      poseInstanceRef.current.setOptions({
+        modelComplexity: 0, // Lite model for speed on lower-end devices
         smoothLandmarks: true,
         enableSegmentation: false,
         minDetectionConfidence: 0.5,
         minTrackingConfidence: 0.5
       });
 
-      poseObj.onResults(onResults);
+      poseInstanceRef.current.onResults(onResults);
 
-      camera = new window.Camera(videoElement, {
+      cameraRef.current = new window.Camera(videoElement, {
         onFrame: async () => {
-          if (videoRef.current && !sessionComplete) {
-            await poseObj.send({ image: videoRef.current });
+          if (isUnmountedRef.current || sessionComplete) return;
+
+          framesReceivedCountRef.current += 1;
+          const now = Date.now();
+
+          // Camera FPS tracking
+          cameraFramesCount.current += 1;
+          if (now - lastCameraFpsTime.current > 1000) {
+            currentCameraFps.current = Math.round((cameraFramesCount.current * 1000) / (now - lastCameraFpsTime.current));
+            cameraFramesCount.current = 0;
+            lastCameraFpsTime.current = now;
+          }
+
+          // Strict Concurrency Lock: Drop overlapping frames to prevent WebAssembly stack queue drifts/freezes
+          if (isProcessingRef.current) {
+            framesDroppedCountRef.current += 1;
+            return;
+          }
+
+          if (videoRef.current) {
+            isProcessingRef.current = true;
+            framesProcessedCountRef.current += 1;
+            try {
+              await poseInstanceRef.current.send({ image: videoRef.current });
+            } catch (err) {
+              console.error("Error sending frame to MediaPipe Pose:", err);
+            } finally {
+              isProcessingRef.current = false;
+            }
           }
         },
         width: 640,
         height: 480
       });
 
-      camera.start();
+      cameraRef.current.start();
     }
 
     initMediaPipe();
 
     return () => {
-      if (camera) camera.stop();
-      if (poseObj) poseObj.close();
+      isUnmountedRef.current = true;
+      if (cameraRef.current) {
+        try {
+          cameraRef.current.stop();
+        } catch (e) {
+          console.error("Error stopping camera:", e);
+        }
+        cameraRef.current = null;
+      }
+      if (poseInstanceRef.current) {
+        try {
+          poseInstanceRef.current.close();
+        } catch (e) {
+          console.error("Error closing pose:", e);
+        }
+        poseInstanceRef.current = null;
+      }
       speechHelper.cancel();
     };
-  }, [sessionComplete]); // Removed isLoaded to prevent camera re-initialization crash
+  }, [sessionComplete]);
 
   // Calculate circular progress
   const radius = 30;
@@ -288,11 +583,27 @@ export default function MediaPipePose({ session = [], initialPoseIndex = 0, onEx
 
       {/* Top Header */}
       <div style={{ position: 'absolute', top: '40px', left: '0', right: '0', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', padding: '0 24px', zIndex: 10 }}>
-        <button className="btn-icon" onClick={onExit} style={{ background: 'rgba(0,0,0,0.6)', color: 'white', border: 'none', backdropFilter: 'blur(10px)' }}>
-          <ArrowLeft size={24} />
-        </button>
+        <div style={{ display: 'flex', gap: '12px' }}>
+          <button className="btn-icon" onClick={onExit} style={{ background: 'rgba(0,0,0,0.6)', color: 'white', border: 'none', backdropFilter: 'blur(10px)' }}>
+            <ArrowLeft size={24} />
+          </button>
+          <button 
+            className="btn-icon" 
+            onClick={() => setShowDebug(!showDebug)} 
+            style={{ 
+              background: showDebug ? 'var(--accent-gold)' : 'rgba(0,0,0,0.6)', 
+              color: showDebug ? 'var(--bg-primary)' : 'white', 
+              border: showDebug ? 'none' : '1px solid rgba(255,255,255,0.2)', 
+              backdropFilter: 'blur(10px)',
+              cursor: 'pointer'
+            }}
+            title="Toggle Debug HUD"
+          >
+            <Activity size={24} />
+          </button>
+        </div>
 
-        {/* Dynamic Analytics Hud */}
+        {/* Dynamic Analytics HUD */}
         <div style={{ display: 'flex', gap: '16px' }}>
           {/* Accuracy Score */}
           <div style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(10px)', padding: '12px 20px', borderRadius: '16px', color: 'white', display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -318,6 +629,70 @@ export default function MediaPipePose({ session = [], initialPoseIndex = 0, onEx
           )}
         </div>
       </div>
+
+      {/* Diagnostics Debug Panel HUD */}
+      {showDebug && (
+        <div style={{
+          position: 'absolute',
+          top: '160px',
+          right: '24px',
+          width: '280px',
+          background: 'rgba(13, 13, 15, 0.85)',
+          border: '1px solid var(--accent-gold)',
+          borderRadius: '12px',
+          padding: '16px',
+          color: '#fff',
+          fontFamily: 'monospace',
+          fontSize: '11px',
+          zIndex: 100,
+          boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+          backdropFilter: 'blur(10px)'
+        }}>
+          <div style={{ color: 'var(--accent-gold)', fontWeight: 'bold', borderBottom: '1px solid rgba(196,169,106,0.3)', paddingBottom: '6px', marginBottom: '8px', display: 'flex', justifyContent: 'space-between' }}>
+            <span>TRACKING DIAGNOSTICS</span>
+            <span style={{ fontSize: '9px', opacity: 0.6 }}>v1.1</span>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: '8px 12px' }}>
+            <div>Camera FPS:</div>
+            <div style={{ textAlign: 'right', fontWeight: 'bold', color: debugStats.cameraFps > 20 ? '#4caf50' : '#ff9800' }}>{debugStats.cameraFps}</div>
+
+            <div>Inference FPS:</div>
+            <div style={{ textAlign: 'right', fontWeight: 'bold', color: debugStats.poseFps > 20 ? '#4caf50' : '#ff9800' }}>{debugStats.poseFps}</div>
+
+            <div>Received Frms:</div>
+            <div style={{ textAlign: 'right' }}>{debugStats.received}</div>
+
+            <div>Processed:</div>
+            <div style={{ textAlign: 'right' }}>{debugStats.processed}</div>
+
+            <div>Dropped:</div>
+            <div style={{ textAlign: 'right', color: debugStats.dropped > 0 ? '#f44336' : '#fff' }}>{debugStats.dropped}</div>
+
+            <div>Pose Detected:</div>
+            <div style={{ textAlign: 'right', fontWeight: 'bold', color: debugStats.poseDetected ? '#4caf50' : '#f44336' }}>{debugStats.poseDetected ? 'YES' : 'NO'}</div>
+
+            <div>Avg Joint Vis:</div>
+            <div style={{ textAlign: 'right' }}>{debugStats.avgVisibility.toFixed(2)}</div>
+
+            <div>Lowest Joint:</div>
+            <div style={{ textAlign: 'right', fontSize: '9px', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }} title={debugStats.lowestJointName}>
+              {debugStats.lowestJointName}
+            </div>
+
+            <div>Min Joint Vis:</div>
+            <div style={{ textAlign: 'right', color: debugStats.lowestJointVis < 0.5 ? '#f44336' : '#4caf50' }}>{debugStats.lowestJointVis.toFixed(2)}</div>
+
+            <div>Last Valid Hold:</div>
+            <div style={{ textAlign: 'right' }}>{debugStats.lastValidSecsAgo}</div>
+          </div>
+          <div style={{ marginTop: '8px', borderTop: '1px solid rgba(196,169,106,0.15)', paddingTop: '6px' }}>
+            <div style={{ color: 'var(--text-secondary)', fontSize: '10px' }}>Loss Reason:</div>
+            <div style={{ color: debugStats.poseLossReason !== 'None' ? '#ff9800' : '#4caf50', marginTop: '2px', wordBreak: 'break-word', fontSize: '10px' }}>
+              {debugStats.poseLossReason}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Timer & Hold Progress */}
       <div style={{ position: 'absolute', left: '24px', top: '50%', transform: 'translateY(-50%)', zIndex: 10 }}>

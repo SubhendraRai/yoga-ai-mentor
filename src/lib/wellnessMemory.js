@@ -35,6 +35,7 @@ export const WellnessMemory = {
     const current = WellnessMemory.getProfile() || {};
     const updated = { ...current, ...updates };
     localStorage.setItem('wellness_profile', JSON.stringify(updated));
+    window.dispatchEvent(new CustomEvent('wellness_profile_updated', { detail: updated }));
     
     // Cloud Sync
     const userId = await WellnessMemory.getUserId();
@@ -53,7 +54,14 @@ export const WellnessMemory = {
           wakeTime: updated.wakeTime,
           stressLevel: updated.stressLevel
         },
-        ai_profile_summary: updated.aiAssessment || null
+        ai_profile_summary: updated.aiAssessment || null,
+        current_streak: parseInt(updated.current_streak) || 0,
+        longest_streak: parseInt(updated.longest_streak) || 0,
+        completed_sessions: parseInt(updated.completed_sessions) || 0,
+        wellness_assessment_completed: !!updated.wellness_assessment_completed,
+        camera_access: !!updated.camera_access,
+        camera_access_type: updated.camera_access_type || null,
+        camera_unlocked_at: updated.camera_unlocked_at || null
       });
       if (error) {
         console.error("Supabase Profile Upsert Error:", error);
@@ -67,8 +75,18 @@ export const WellnessMemory = {
   },
 
   completeOnboarding: async (profileData) => {
-    await WellnessMemory.updateProfile(profileData);
+    const current = WellnessMemory.getProfile() || {};
+    const updated = { 
+      ...current, 
+      ...profileData, 
+      wellness_assessment_completed: true 
+    };
+
+    await WellnessMemory.updateProfile(updated);
     localStorage.setItem('wellness_onboarding_complete', 'true');
+    
+    // Now run recalculate to check eligibility
+    await WellnessMemory.recalculateStreakAndSessions();
   },
 
   // ------------------------------------------------------------------------
@@ -139,7 +157,7 @@ export const WellnessMemory = {
   // ------------------------------------------------------------------------
   logActivity: async (activityId, type, name, duration) => {
     const entry = { id: activityId, type, name, duration, timestamp: new Date().toISOString() };
-    const history = WellnessMemory.getActivityHistory(30);
+    const history = WellnessMemory.getActivityHistory(null) || [];
     history.push(entry);
     localStorage.setItem('wellness_activities', JSON.stringify(history));
 
@@ -153,6 +171,9 @@ export const WellnessMemory = {
         note: `Pose: ${name}`
       });
     }
+
+    // Recalculate streak, completed sessions and check eligibility
+    await WellnessMemory.recalculateStreakAndSessions();
   },
 
   getActivityHistory: (days = 7) => {
@@ -423,9 +444,17 @@ export const WellnessMemory = {
           bedtime: profile.schedule?.bedtime,
           wakeTime: profile.schedule?.wakeTime,
           stressLevel: profile.schedule?.stressLevel,
-          aiAssessment: profile.ai_profile_summary
+          aiAssessment: profile.ai_profile_summary,
+          // Sync all the 7 fields!
+          current_streak: profile.current_streak,
+          longest_streak: profile.longest_streak,
+          completed_sessions: profile.completed_sessions,
+          wellness_assessment_completed: profile.wellness_assessment_completed,
+          camera_access: profile.camera_access,
+          camera_access_type: profile.camera_access_type,
+          camera_unlocked_at: profile.camera_unlocked_at
         }));
-        localStorage.setItem('wellness_onboarding_complete', 'true');
+        localStorage.setItem('wellness_onboarding_complete', profile.wellness_assessment_completed ? 'true' : 'false');
       }
 
       // 2. Process Observations
@@ -464,7 +493,7 @@ export const WellnessMemory = {
         const sleeps = logs.filter(l => l.log_type === 'sleep').map(l => ({ 
           id: l.id, 
           hours: l.value, 
-          quality: l.note ? parseInt(l.note.replace(/\\D/g, '')) || 3 : 3, 
+          quality: l.note ? parseInt(l.note.replace(/\D/g, '')) || 3 : 3, 
           timestamp: l.created_at 
         }));
 
@@ -481,9 +510,94 @@ export const WellnessMemory = {
       }
       
       localStorage.setItem('wellness_last_sync', Date.now().toString());
+
+      // Recalculate streak, completed sessions and check eligibility on sync
+      await WellnessMemory.recalculateStreakAndSessions();
     } catch (e) {
       console.error("Failed to sync from cloud", e);
     }
+  },
+
+  recalculateStreakAndSessions: async () => {
+    const profile = WellnessMemory.getProfile() || {};
+    const activities = WellnessMemory.getActivityHistory(null) || [];
+    
+    // Filter for valid yoga sessions: duration >= 5 mins
+    const validSessions = activities.filter(act => {
+      const dur = parseFloat(act.duration) || 0;
+      return dur >= 5;
+    });
+
+    // Sort valid sessions chronologically
+    validSessions.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+
+    let currentStreak = 0;
+    let maxStreakInHistory = 0;
+    let lastTimestamp = null;
+
+    for (const session of validSessions) {
+      if (!lastTimestamp) {
+        currentStreak = 1;
+      } else {
+        const diffMs = new Date(session.timestamp) - new Date(lastTimestamp);
+        const diffHours = diffMs / (1000 * 60 * 60);
+        if (diffHours > 24) {
+          currentStreak = 1;
+        } else {
+          const dayOfPrev = new Date(lastTimestamp).toDateString();
+          const dayOfCurr = new Date(session.timestamp).toDateString();
+          if (dayOfPrev !== dayOfCurr) {
+            currentStreak++;
+          }
+        }
+      }
+      lastTimestamp = session.timestamp;
+      if (currentStreak > maxStreakInHistory) {
+        maxStreakInHistory = currentStreak;
+      }
+    }
+
+    if (lastTimestamp) {
+      const diffMsSinceLast = Date.now() - new Date(lastTimestamp);
+      const diffHoursSinceLast = diffMsSinceLast / (1000 * 60 * 60);
+      if (diffHoursSinceLast > 24) {
+        currentStreak = 0;
+      }
+    } else {
+      currentStreak = 0;
+    }
+
+    const completedSessionsCount = validSessions.length;
+    const storedLongestStreak = parseInt(profile.longest_streak) || 0;
+    const finalLongestStreak = Math.max(storedLongestStreak, maxStreakInHistory);
+
+    const updates = {
+      current_streak: currentStreak,
+      longest_streak: finalLongestStreak,
+      completed_sessions: completedSessionsCount
+    };
+
+    const isEligible = 
+      updates.current_streak >= 7 && 
+      updates.completed_sessions >= 10 && 
+      !!profile.wellness_assessment_completed;
+
+    if (isEligible && !profile.camera_access) {
+      updates.camera_access = true;
+      updates.camera_access_type = 'early_access';
+      updates.camera_unlocked_at = new Date().toISOString();
+      
+      setTimeout(() => {
+        window.dispatchEvent(new CustomEvent('camera_unlocked', {
+          detail: { 
+            streak: updates.current_streak, 
+            sessions: updates.completed_sessions 
+          }
+        }));
+      }, 500);
+    }
+
+    await WellnessMemory.updateProfile(updates);
   },
 
   // ------------------------------------------------------------------------
