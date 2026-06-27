@@ -1,9 +1,5 @@
 import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
 import { RefreshCw, Play, Info } from 'lucide-react';
-import MotionCard from './motion/MotionCard';
-import MotionButton from './motion/MotionButton';
-import { RevealGroup, revealItemVariants } from './motion/Reveal';
 
 export default function WellnessPlan({ plan, onRegenerate, onStartSession, onLearnMore }) {
   const [parsedPlan, setParsedPlan] = useState(null);
@@ -16,14 +12,14 @@ export default function WellnessPlan({ plan, onRegenerate, onStartSession, onLea
         const cleanJson = plan.replace(/```json/g, '').replace(/```/g, '').trim();
         const data = JSON.parse(cleanJson);
         setParsedPlan(data);
-
+        
         // Support both old format (poseIds) and new dynamic format (poses)
         if (data.poses) {
           // New dynamic format
           const posesWithImages = data.poses.map(pose => ({
             ...pose,
             id: pose.sanskritName.toLowerCase().replace(/[^a-z0-9]/g, '_'),
-            imageUrl: `https://placehold.co/800x600/F0EBE0/2E4A36?text=${encodeURIComponent(pose.englishName)}&font=raleway`
+            imageUrl: `https://placehold.co/800x600/13131a/c4a96a?text=${encodeURIComponent(pose.englishName)}&font=Playfair+Display`
           }));
           setRecommendedPoses(posesWithImages);
         } else if (data.poseIds) {
@@ -39,66 +35,81 @@ export default function WellnessPlan({ plan, onRegenerate, onStartSession, onLea
   if (!parsedPlan) return null;
 
   return (
-    <div>
-      <motion.div
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-        className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-canvas-deep to-canvas px-7 py-7 mb-7"
-      >
-        <h3 className="font-display text-[22px] text-moss-deep mb-3">Today&rsquo;s guidance</h3>
-        <p className="text-[15px] leading-relaxed text-text-body mb-6">{parsedPlan.message}</p>
-        <MotionButton fullWidth onClick={() => onStartSession(recommendedPoses)} icon={<Play size={16} />}>
-          Start full AI routine
-        </MotionButton>
-      </motion.div>
+    <div style={{ animation: 'fadeUp 0.5s ease both' }}>
+      <div className="card" style={{ marginBottom: '24px', background: 'var(--bg-secondary)', position: 'relative' }}>
+        <h3 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '24px', color: 'var(--accent-gold)', marginBottom: '12px' }}>
+          Today's Guidance
+        </h3>
+        <p style={{ color: 'var(--text-body)', fontSize: '15px', lineHeight: '1.6', marginBottom: '24px' }}>
+          {parsedPlan.message}
+        </p>
+        <button 
+          className="submit-btn" 
+          onClick={() => onStartSession(recommendedPoses)}
+          style={{ width: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px' }}
+        >
+          <Play size={18} /> Start Full AI Routine
+        </button>
+      </div>
 
-      <h3 className="font-display text-[19px] text-ink mb-5">Recommended flow</h3>
+      <h3 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '20px', color: 'var(--text-primary)', marginBottom: '16px' }}>
+        Recommended Flow
+      </h3>
 
-      <RevealGroup className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5" stagger={0.1}>
-        {recommendedPoses.map((pose) => (
-          <motion.div key={pose.id} variants={revealItemVariants}>
-            <MotionCard className="overflow-hidden flex flex-col h-full">
-              <div className="relative h-[150px] w-full overflow-hidden">
-                <img
-                  src={pose.imageUrl}
-                  alt={pose.englishName}
-                  className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                />
-                <span className="absolute top-3 right-3 bg-white/90 text-ink text-[11px] font-semibold px-2.5 py-1 rounded-full">
-                  {pose.duration} min
-                </span>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '20px' }}>
+        {recommendedPoses.map(pose => (
+          <div key={pose.id} className="card" style={{ padding: '0', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ height: '160px', width: '100%', position: 'relative' }}>
+              <img 
+                src={pose.imageUrl} 
+                alt={pose.englishName} 
+                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              />
+              <div style={{ position: 'absolute', top: '12px', right: '12px', background: 'rgba(255,255,255,0.9)', color: '#0d0d0f', padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 'bold' }}>
+                {pose.duration} mins
               </div>
-
-              <div className="p-5 flex flex-col flex-1">
-                <h4 className="font-display text-[19px] text-ink mb-0.5">{pose.englishName}</h4>
-                <p className="text-text-secondary text-[12px] mb-3">{pose.sanskritName}</p>
-
-                <ul className="text-[13px] text-text-body space-y-1 mb-5 flex-1 list-disc pl-4">
-                  {pose.shortBenefits.map((benefit, i) => (
-                    <li key={i}>{benefit}</li>
-                  ))}
-                </ul>
-
-                <div className="grid grid-cols-2 gap-2">
-                  <MotionButton size="sm" onClick={() => onStartSession(pose)} icon={<Play size={13} />}>
-                    Start
-                  </MotionButton>
-                  <MotionButton size="sm" variant="outline" onClick={() => onLearnMore(pose)} icon={<Info size={13} />}>
-                    Learn more
-                  </MotionButton>
-                </div>
+            </div>
+            
+            <div style={{ padding: '20px', flex: 1, display: 'flex', flexDirection: 'column' }}>
+              <h4 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '20px', color: 'var(--text-primary)', marginBottom: '4px' }}>
+                {pose.englishName}
+              </h4>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '12px', marginBottom: '16px' }}>
+                {pose.sanskritName}
+              </p>
+              
+              <ul style={{ paddingLeft: '16px', color: 'var(--text-body)', fontSize: '13px', marginBottom: '24px', flex: 1 }}>
+                {pose.shortBenefits.map((benefit, i) => (
+                  <li key={i} style={{ marginBottom: '4px' }}>{benefit}</li>
+                ))}
+              </ul>
+              
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                <button 
+                  className="submit-btn" 
+                  style={{ marginTop: 0, padding: '10px', fontSize: '13px' }}
+                  onClick={() => onStartSession(pose)}
+                >
+                  <Play size={14} /> Start Session
+                </button>
+                <button 
+                  className="btn-outline" 
+                  style={{ padding: '10px', fontSize: '13px', justifyContent: 'center' }}
+                  onClick={() => onLearnMore(pose)}
+                >
+                  <Info size={14} /> Learn More
+                </button>
               </div>
-            </MotionCard>
-          </motion.div>
+            </div>
+          </div>
         ))}
-      </RevealGroup>
+      </div>
 
       {onRegenerate && (
-        <div className="mt-8 text-center">
-          <MotionButton variant="ghost" onClick={onRegenerate} icon={<RefreshCw size={14} />}>
-            Generate new plan
-          </MotionButton>
+        <div style={{ marginTop: '32px', textAlign: 'center' }}>
+          <button className="btn-outline" onClick={onRegenerate}>
+            <RefreshCw size={14} /> Generate New Plan
+          </button>
         </div>
       )}
     </div>

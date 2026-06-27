@@ -22,7 +22,7 @@ export default function PoseDetail({ pose, onBack, onStartSession }) {
           />
           <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.7), transparent)' }} />
           <div style={{ position: 'absolute', bottom: '32px', left: '32px', color: '#fff' }}>
-            <h1 style={{ fontFamily: "'Fraunces', serif", fontSize: '42px', fontWeight: 300, marginBottom: '8px' }}>
+            <h1 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '42px', fontWeight: 300, marginBottom: '8px' }}>
               {pose.englishName}
             </h1>
             <h2 style={{ fontSize: '18px', opacity: 0.8, letterSpacing: '0.05em' }}>
@@ -52,7 +52,7 @@ export default function PoseDetail({ pose, onBack, onStartSession }) {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '32px' }}>
             
             <div>
-              <h3 style={{ fontFamily: "'Fraunces', serif", fontSize: '24px', color: 'var(--accent-gold)', marginBottom: '16px', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>
+              <h3 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '24px', color: 'var(--accent-gold)', marginBottom: '16px', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>
                 Step-by-Step Instructions
               </h3>
               <ol style={{ paddingLeft: '20px', color: 'var(--text-body)', fontSize: '15px', lineHeight: '1.8' }}>
@@ -64,7 +64,7 @@ export default function PoseDetail({ pose, onBack, onStartSession }) {
 
             <div>
               <div style={{ background: 'var(--accent-gold-dim)', border: '1px solid var(--accent-gold)', borderRadius: '12px', padding: '24px', marginBottom: '24px' }}>
-                <h3 style={{ fontFamily: "'Fraunces', serif", fontSize: '20px', color: 'var(--accent-gold)', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <h3 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '20px', color: 'var(--accent-gold)', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <Sparkles size={18} /> AI Coach Tip
                 </h3>
                 <p style={{ color: 'var(--text-primary)', fontSize: '14px', lineHeight: '1.6' }}>
@@ -72,7 +72,7 @@ export default function PoseDetail({ pose, onBack, onStartSession }) {
                 </p>
               </div>
 
-              <h3 style={{ fontFamily: "'Fraunces', serif", fontSize: '20px', color: 'var(--text-primary)', marginBottom: '16px' }}>
+              <h3 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '20px', color: 'var(--text-primary)', marginBottom: '16px' }}>
                 Common Mistakes
               </h3>
               <ul style={{ paddingLeft: '20px', color: 'var(--text-body)', fontSize: '14px', lineHeight: '1.6', marginBottom: '24px' }}>
@@ -81,7 +81,7 @@ export default function PoseDetail({ pose, onBack, onStartSession }) {
                 ))}
               </ul>
 
-              <h3 style={{ fontFamily: "'Fraunces', serif", fontSize: '20px', color: 'var(--error-color)', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <h3 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '20px', color: 'var(--error-color)', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <AlertCircle size={18} /> Precautions
               </h3>
               <ul style={{ paddingLeft: '20px', color: 'var(--text-body)', fontSize: '14px', lineHeight: '1.6' }}>

@@ -94,7 +94,7 @@ export default function FeatureWalkthrough({ onComplete }) {
 
         {/* Text */}
         <h2 style={{
-          fontFamily: "'Fraunces', serif",
+          fontFamily: "'Cormorant Garamond', serif",
           fontSize: '32px',
           color: 'var(--text-primary)',
           marginBottom: '16px'
