@@ -62,7 +62,7 @@ function checkKeyVisibility(landmarks, indices) {
  * @returns { accuracy: number, feedback: string }
  */
 export function analyzePose(landmarks, poseId) {
-  if (!landmarks || landmarks.length < 33) return { accuracy: 0, feedback: "Please step into the frame." };
+  if (!landmarks || landmarks.length < 33) return { accuracy: 0, feedback: "Please step into the frame.", angleScore: 0, visibilityScore: 0 };
 
   // Common landmarks
   const lShoulder = landmarks[11];
@@ -80,12 +80,22 @@ export function analyzePose(landmarks, poseId) {
 
   let accuracy = 0;
   let feedback = "";
+  let angleScore = 100;
+  let visibilityScore = 1.0;
+
+  // Calculate minimum visibility of all landmarks
+  let minVis = 1.0;
+  landmarks.forEach(lm => {
+    if (lm && lm.visibility !== undefined && lm.visibility < minVis) {
+      minVis = lm.visibility;
+    }
+  });
+  visibilityScore = minVis;
 
   switch (poseId) {
     case 'warrior_ii': {
       // 1. Visibility Check
       const vis = checkKeyVisibility(landmarks, [11, 12, 13, 14, 15, 16, 23, 24, 25, 26, 27, 28]);
-      if (!vis.visible) return { accuracy: 50, feedback: vis.feedback };
 
       // Arms should be parallel to floor (~90 deg from torso)
       const lArmAngle = calculateAngle(lWrist, lShoulder, lHip);
@@ -108,21 +118,23 @@ export function analyzePose(landmarks, poseId) {
       const kneeAcc = getAccuracy(frontKneeAngle, 100, 35);
       const backLegAcc = getAccuracy(backKneeAngle, 180, 20);
 
-      accuracy = (armAcc + elbowAcc + kneeAcc + backLegAcc) / 4;
+      angleScore = (armAcc + elbowAcc + kneeAcc + backLegAcc) / 4;
 
-      if (elbowAcc < 80) feedback = "Straighten your elbows. Reach out with your hands.";
-      else if (armAcc < 80) feedback = "Raise your arms to be parallel to the floor.";
-      else if (kneeAcc < 80) feedback = "Bend your front knee closer to a 90-degree angle.";
-      else if (backLegAcc < 80) feedback = "Straighten your back leg fully.";
-      else feedback = "Perfect Warrior II form! Keep breathing.";
+      if (!vis.visible) {
+        accuracy = 50;
+        feedback = vis.feedback;
+      } else {
+        accuracy = angleScore;
+        if (elbowAcc < 80) feedback = "Straighten your elbows. Reach out with your hands.";
+        else if (armAcc < 80) feedback = "Raise your arms to be parallel to the floor.";
+        else if (kneeAcc < 80) feedback = "Bend your front knee closer to a 90-degree angle.";
+        else if (backLegAcc < 80) feedback = "Straighten your back leg fully.";
+        else feedback = "Perfect Warrior II form! Keep breathing.";
+      }
       break;
     }
 
     case 'downward_dog': {
-      // 2. Visibility Check
-      const vis = checkKeyVisibility(landmarks, [11, 12, 15, 16, 23, 24, 25, 26, 27, 28]);
-      if (!vis.visible) return { accuracy: 50, feedback: vis.feedback };
-
       // Hips are highest point (y-axis inverted, so smaller y = higher up)
       const isHipsHighest = lHip.y < lShoulder.y && lHip.y < lKnee.y;
       
@@ -141,23 +153,26 @@ export function analyzePose(landmarks, poseId) {
       const rKneeAngle = calculateAngle(rHip, rKnee, rAnkle);
       const legsAcc = (getAccuracy(lKneeAngle, 180, 25) + getAccuracy(rKneeAngle, 180, 25)) / 2;
 
-      accuracy = (hipAcc + shoulderAcc + legsAcc) / 3;
+      angleScore = (hipAcc + shoulderAcc + legsAcc) / 3;
       if (!isHipsHighest) {
-        accuracy = Math.min(accuracy, 70);
+        angleScore = Math.min(angleScore, 70);
       }
 
-      if (!isHipsHighest || hipAcc < 80) feedback = "Push your hips higher toward the ceiling.";
-      else if (shoulderAcc < 80) feedback = "Press firmly into your hands and flatten your spine.";
-      else if (legsAcc < 80) feedback = "Straighten your legs as much as possible, heels toward the mat.";
-      else feedback = "Perfect Downward Dog. Push through your palms.";
+      const vis = checkKeyVisibility(landmarks, [11, 12, 15, 16, 23, 24, 25, 26, 27, 28]);
+      if (!vis.visible) {
+        accuracy = 50;
+        feedback = vis.feedback;
+      } else {
+        accuracy = angleScore;
+        if (!isHipsHighest || hipAcc < 80) feedback = "Push your hips higher toward the ceiling.";
+        else if (shoulderAcc < 80) feedback = "Press firmly into your hands and flatten your spine.";
+        else if (legsAcc < 80) feedback = "Straighten your legs as much as possible, heels toward the mat.";
+        else feedback = "Perfect Downward Dog. Push through your palms.";
+      }
       break;
     }
 
     case 'tree_pose': {
-      // 3. Visibility Check
-      const vis = checkKeyVisibility(landmarks, [11, 12, 23, 24, 25, 26, 27, 28]);
-      if (!vis.visible) return { accuracy: 50, feedback: vis.feedback };
-
       // One leg straight (~180), one leg bent with knee out.
       const lLegAngle = calculateAngle(lHip, lKnee, lAnkle);
       const rLegAngle = calculateAngle(rHip, rKnee, rAnkle);
@@ -187,83 +202,99 @@ export function analyzePose(landmarks, poseId) {
         }
       }
 
-      accuracy = (standingAcc + raisedAcc + handsAcc) / 3;
+      angleScore = (standingAcc + raisedAcc + handsAcc) / 3;
 
-      if (standingAcc < 85) feedback = "Keep your standing leg straight and strong.";
-      else if (raisedAcc < 80) feedback = "Open your hip and place your foot against your inner thigh or calf.";
-      else if (handsAcc < 85) feedback = "Bring hands to heart center or reach them above your head.";
-      else feedback = "Beautiful balance. Find a focal point to hold steady.";
+      const vis = checkKeyVisibility(landmarks, [11, 12, 23, 24, 25, 26, 27, 28]);
+      if (!vis.visible) {
+        accuracy = 50;
+        feedback = vis.feedback;
+      } else {
+        accuracy = angleScore;
+        if (standingAcc < 85) feedback = "Keep your standing leg straight and strong.";
+        else if (raisedAcc < 80) feedback = "Open your hip and place your foot against your inner thigh or calf.";
+        else if (handsAcc < 85) feedback = "Bring hands to heart center or reach them above your head.";
+        else feedback = "Beautiful balance. Find a focal point to hold steady.";
+      }
       break;
     }
 
     case 'cat_cow': {
-      // Hands and knees on ground (tabletop)
-      const vis = checkKeyVisibility(landmarks, [11, 12, 13, 14, 15, 16, 23, 24, 25, 26]);
-      if (!vis.visible) return { accuracy: 50, feedback: vis.feedback };
-
       // Verify spine is horizontal (shoulders and hips at similar y height)
       const shoulderHipYDiff = Math.abs((lShoulder.y + rShoulder.y)/2 - (lHip.y + rHip.y)/2);
       const isHorizontal = shoulderHipYDiff < 0.15;
 
-      accuracy = isHorizontal ? 90 : 70;
-      
-      // Since it's a dynamic pose, if they are in tabletop posture, we encourage the flow
-      if (!isHorizontal) {
-        feedback = "Bring your shoulders and hips level in a tabletop position.";
+      angleScore = isHorizontal ? 90 : 70;
+
+      const vis = checkKeyVisibility(landmarks, [11, 12, 13, 14, 15, 16, 23, 24, 25, 26]);
+      if (!vis.visible) {
+        accuracy = 50;
+        feedback = vis.feedback;
       } else {
-        feedback = "Flow with your breath: arch your back on inhales, round it on exhales.";
+        accuracy = angleScore;
+        if (!isHorizontal) {
+          feedback = "Bring your shoulders and hips level in a tabletop position.";
+        } else {
+          feedback = "Flow with your breath: arch your back on inhales, round it on exhales.";
+        }
       }
       break;
     }
 
     case 'savasana': {
       // Corpse pose: Lie flat. Shoulders, hips, and knees at similar y heights (close to floor)
-      const vis = checkKeyVisibility(landmarks, [11, 12, 23, 24, 25, 26, 27, 28]);
-      if (!vis.visible) return { accuracy: 50, feedback: vis.feedback };
-
-      // We check if the distance between shoulder and ankle along the y-axis is small
-      // and they are horizontally aligned
       const heightDiff = Math.abs(lShoulder.y - lAnkle.y);
       const isFlat = heightDiff < 0.25;
 
-      accuracy = isFlat ? 95 : 75;
-      if (!isFlat) {
-        feedback = "Lie down fully flat on your back.";
+      angleScore = isFlat ? 95 : 75;
+
+      const vis = checkKeyVisibility(landmarks, [11, 12, 23, 24, 25, 26, 27, 28]);
+      if (!vis.visible) {
+        accuracy = 50;
+        feedback = vis.feedback;
       } else {
-        feedback = "Perfect savasana. Relax your body and release all thoughts.";
+        accuracy = angleScore;
+        if (!isFlat) {
+          feedback = "Lie down fully flat on your back.";
+        } else {
+          feedback = "Perfect savasana. Relax your body and release all thoughts.";
+        }
       }
       break;
     }
 
     case 'childs_pose': {
       // Kneeling, chest low, arms extended
-      const vis = checkKeyVisibility(landmarks, [11, 12, 15, 16, 23, 24, 27, 28]);
-      if (!vis.visible) return { accuracy: 50, feedback: vis.feedback };
-
-      // Hips should be low (closer to ankles)
       const hipAnkleDist = Math.hypot(lHip.x - lAnkle.x, lHip.y - lAnkle.y);
       const isHipsLow = hipAnkleDist < 0.25;
 
       // Shoulders should be low (arms extended forward)
       const isChestLow = lShoulder.y > lHip.y || Math.abs(lShoulder.y - lHip.y) < 0.15;
 
-      accuracy = (isHipsLow ? 50 : 25) + (isChestLow ? 50 : 25);
-      
-      if (!isHipsLow) feedback = "Sink your hips back closer to your heels.";
-      else if (!isChestLow) feedback = "Lower your forehead and chest toward the floor.";
-      else feedback = "Perfect Child's Pose. Breathe into your lower back.";
+      angleScore = (isHipsLow ? 50 : 25) + (isChestLow ? 50 : 25);
+
+      const vis = checkKeyVisibility(landmarks, [11, 12, 15, 16, 23, 24, 27, 28]);
+      if (!vis.visible) {
+        accuracy = 50;
+        feedback = vis.feedback;
+      } else {
+        accuracy = angleScore;
+        if (!isHipsLow) feedback = "Sink your hips back closer to your heels.";
+        else if (!isChestLow) feedback = "Lower your forehead and chest toward the floor.";
+        else feedback = "Perfect Child's Pose. Breathe into your lower back.";
+      }
       break;
     }
 
     default: {
       // Generic check: Ensure they are relatively upright and visible.
       if (lShoulder.y < lHip.y && rShoulder.y < rHip.y) {
-        accuracy = 90; 
+        angleScore = 90; 
         feedback = "Good posture. Keep holding steady.";
       } else {
-        accuracy = 60;
+        angleScore = 60;
         feedback = "Adjust your posture to align with the camera.";
       }
+      accuracy = angleScore;
       break;
     }
   }
@@ -271,5 +302,10 @@ export function analyzePose(landmarks, poseId) {
   // Smooth accuracy
   accuracy = Math.round(accuracy);
   
-  return { accuracy, feedback };
+  return { 
+    accuracy, 
+    feedback, 
+    angleScore: Math.round(angleScore), 
+    visibilityScore: Number(visibilityScore.toFixed(3)) 
+  };
 }

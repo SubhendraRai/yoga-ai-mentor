@@ -36,6 +36,8 @@ const GET_POSE_KEY_JOINTS = (poseId) => {
   }
 };
 
+const DEFAULT_POSE = { id: 'generic', englishName: "Free Practice", duration: 1, imageUrl: "https://placehold.co/800x600/13131a/c4a96a?text=Practice" };
+
 export default function MediaPipePose({ session = [], initialPoseIndex = 0, onExit }) {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
@@ -85,7 +87,16 @@ export default function MediaPipePose({ session = [], initialPoseIndex = 0, onEx
     lowestJointName: 'N/A',
     lowestJointVis: 0,
     poseLossReason: 'Initializing...',
-    lastValidSecsAgo: 'Never'
+    lastValidSecsAgo: 'Never',
+    currentPoseName: 'N/A',
+    poseMatched: 'NO',
+    angleScore: 0,
+    visibilityScore: 0,
+    finalAccuracy: 0,
+    speechEnabled: false,
+    speechTriggered: 'NO',
+    speechQueueLength: 0,
+    lastSpeechEvent: 'None'
   });
 
   // Frames counters
@@ -134,8 +145,7 @@ export default function MediaPipePose({ session = [], initialPoseIndex = 0, onEx
   };
   
   // Current pose data
-  const defaultPose = { id: 'generic', englishName: "Free Practice", duration: 1, imageUrl: "https://placehold.co/800x600/13131a/c4a96a?text=Practice" };
-  const currentPose = safeSession.length > currentIndex ? safeSession[currentIndex] : defaultPose;
+  const currentPose = safeSession.length > currentIndex ? safeSession[currentIndex] : DEFAULT_POSE;
 
   // Initialize timer when pose changes
   useEffect(() => {
@@ -146,7 +156,7 @@ export default function MediaPipePose({ session = [], initialPoseIndex = 0, onEx
     prevLandmarksRef.current = null;
     lowVisibilityStartTimesRef.current = {};
     speakFeedbackThrottled(`Next pose: ${currentPose.englishName}. Step into the frame.`, true);
-  }, [currentIndex, currentPose]);
+  }, [currentIndex, currentPose.id]);
 
   const currentIndexRef = useRef(currentIndex);
   
@@ -399,9 +409,11 @@ export default function MediaPipePose({ session = [], initialPoseIndex = 0, onEx
               poseLossReason = `Poor alignment: ${analysis.feedback}`;
             }
 
-            const lastValidSecs = lastValidPoseTimeRef.current 
-              ? `${((now - lastValidPoseTimeRef.current) / 1000).toFixed(1)}s ago`
-              : 'Never';
+            const speechEnabled = !!window.speechSynthesis;
+            const speechQueueLength = window.speechSynthesis ? (window.speechSynthesis.pending ? 1 : 0) : 0;
+            const lastSpeechEvent = lastSpokenTextRef.current 
+              ? `"${lastSpokenTextRef.current}" (${Math.round((now - lastSpokenTimeRef.current)/1000)}s ago)`
+              : 'None';
 
             setDebugStats({
               cameraFps: currentCameraFps.current,
@@ -414,7 +426,16 @@ export default function MediaPipePose({ session = [], initialPoseIndex = 0, onEx
               lowestJointName: lowestJoint,
               lowestJointVis: lowestVis,
               poseLossReason: poseLossReason,
-              lastValidSecsAgo: analysis.accuracy >= 85 ? 'Active' : lastValidSecs
+              lastValidSecsAgo: analysis.accuracy >= 85 ? 'Active' : lastValidSecs,
+              currentPoseName: `${currentPose.englishName} (${currentPose.id})`,
+              poseMatched: analysis.accuracy >= 85 ? 'YES' : 'NO',
+              angleScore: analysis.angleScore !== undefined ? analysis.angleScore : analysis.accuracy,
+              visibilityScore: analysis.visibilityScore !== undefined ? analysis.visibilityScore : lowestVis,
+              finalAccuracy: analysis.accuracy,
+              speechEnabled,
+              speechTriggered: lastSpokenTimeRef.current === now ? 'YES' : 'NO',
+              speechQueueLength,
+              lastSpeechEvent
             });
 
             if (analysis.accuracy >= 85) {
@@ -449,7 +470,18 @@ export default function MediaPipePose({ session = [], initialPoseIndex = 0, onEx
               lowestJointName: 'N/A',
               lowestJointVis: 0,
               poseLossReason: 'No user detected in camera frame',
-              lastValidSecsAgo: lastValidSecs
+              lastValidSecsAgo: lastValidSecs,
+              currentPoseName: `${currentPose.englishName} (${currentPose.id})`,
+              poseMatched: 'NO',
+              angleScore: 0,
+              visibilityScore: 0,
+              finalAccuracy: 0,
+              speechEnabled: !!window.speechSynthesis,
+              speechTriggered: 'NO',
+              speechQueueLength: window.speechSynthesis ? (window.speechSynthesis.pending ? 1 : 0) : 0,
+              lastSpeechEvent: lastSpokenTextRef.current 
+                ? `"${lastSpokenTextRef.current}" (${Math.round((now - lastSpokenTimeRef.current)/1000)}s ago)`
+                : 'None'
             }));
           }
         }
@@ -684,9 +716,37 @@ export default function MediaPipePose({ session = [], initialPoseIndex = 0, onEx
 
             <div>Last Valid Hold:</div>
             <div style={{ textAlign: 'right' }}>{debugStats.lastValidSecsAgo}</div>
+
+            {/* Temporary debug outputs */}
+            <div>Current Pose:</div>
+            <div style={{ textAlign: 'right', fontSize: '9px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={debugStats.currentPoseName}>{debugStats.currentPoseName}</div>
+
+            <div>Pose Matched:</div>
+            <div style={{ textAlign: 'right', fontWeight: 'bold', color: debugStats.poseMatched === 'YES' ? '#4caf50' : '#ff9800' }}>{debugStats.poseMatched}</div>
+
+            <div>Angle Score:</div>
+            <div style={{ textAlign: 'right' }}>{debugStats.angleScore}%</div>
+
+            <div>Vis Score:</div>
+            <div style={{ textAlign: 'right' }}>{debugStats.visibilityScore}</div>
+
+            <div>Final Accuracy:</div>
+            <div style={{ textAlign: 'right', fontWeight: 'bold' }}>{debugStats.finalAccuracy}%</div>
+
+            <div>Speech Enabled:</div>
+            <div style={{ textAlign: 'right' }}>{debugStats.speechEnabled ? 'YES' : 'NO'}</div>
+
+            <div>Speech Trigger:</div>
+            <div style={{ textAlign: 'right', fontWeight: 'bold', color: debugStats.speechTriggered === 'YES' ? '#4caf50' : '#fff' }}>{debugStats.speechTriggered}</div>
+
+            <div>Speech Q Len:</div>
+            <div style={{ textAlign: 'right' }}>{debugStats.speechQueueLength}</div>
           </div>
           <div style={{ marginTop: '8px', borderTop: '1px solid rgba(196,169,106,0.15)', paddingTop: '6px' }}>
-            <div style={{ color: 'var(--text-secondary)', fontSize: '10px' }}>Loss Reason:</div>
+            <div style={{ color: 'var(--text-secondary)', fontSize: '10px' }}>Last Speech:</div>
+            <div style={{ color: '#fff', fontSize: '9px', wordBreak: 'break-word', marginTop: '2px' }}>{debugStats.lastSpeechEvent}</div>
+
+            <div style={{ color: 'var(--text-secondary)', fontSize: '10px', marginTop: '6px' }}>Loss Reason:</div>
             <div style={{ color: debugStats.poseLossReason !== 'None' ? '#ff9800' : '#4caf50', marginTop: '2px', wordBreak: 'break-word', fontSize: '10px' }}>
               {debugStats.poseLossReason}
             </div>
