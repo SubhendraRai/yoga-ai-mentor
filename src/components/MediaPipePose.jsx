@@ -96,7 +96,12 @@ export default function MediaPipePose({ session = [], initialPoseIndex = 0, onEx
     speechEnabled: false,
     speechTriggered: 'NO',
     speechQueueLength: 0,
-    lastSpeechEvent: 'None'
+    lastSpeechEvent: 'None',
+    requiredAngles: 'N/A',
+    currentAngles: 'N/A',
+    angleErrors: 'None',
+    poseMatchReason: 'None',
+    poseRejectionReason: 'None'
   });
 
   // Frames counters
@@ -435,7 +440,12 @@ export default function MediaPipePose({ session = [], initialPoseIndex = 0, onEx
               speechEnabled,
               speechTriggered: lastSpokenTimeRef.current === now ? 'YES' : 'NO',
               speechQueueLength,
-              lastSpeechEvent
+              lastSpeechEvent,
+              requiredAngles: analysis.requiredAngles || 'N/A',
+              currentAngles: analysis.currentAngles || 'N/A',
+              angleErrors: analysis.angleErrors || 'None',
+              poseMatchReason: analysis.poseMatchReason || 'None',
+              poseRejectionReason: analysis.poseRejectionReason || 'None'
             });
 
             if (analysis.accuracy >= 85) {
@@ -481,7 +491,12 @@ export default function MediaPipePose({ session = [], initialPoseIndex = 0, onEx
               speechQueueLength: window.speechSynthesis ? (window.speechSynthesis.pending ? 1 : 0) : 0,
               lastSpeechEvent: lastSpokenTextRef.current 
                 ? `"${lastSpokenTextRef.current}" (${Math.round((now - lastSpokenTimeRef.current)/1000)}s ago)`
-                : 'None'
+                : 'None',
+              requiredAngles: 'N/A',
+              currentAngles: 'N/A',
+              angleErrors: 'No user detected',
+              poseMatchReason: 'None',
+              poseRejectionReason: 'No user detected in camera frame'
             }));
           }
         }
@@ -718,11 +733,14 @@ export default function MediaPipePose({ session = [], initialPoseIndex = 0, onEx
             <div style={{ textAlign: 'right' }}>{debugStats.lastValidSecsAgo}</div>
 
             {/* Temporary debug outputs */}
-            <div>Current Pose:</div>
-            <div style={{ textAlign: 'right', fontSize: '9px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={debugStats.currentPoseName}>{debugStats.currentPoseName}</div>
+            <div>Target Pose:</div>
+            <div style={{ textAlign: 'right', fontWeight: 'bold', color: 'var(--accent-gold)' }}>{debugStats.currentPoseName}</div>
 
             <div>Pose Matched:</div>
             <div style={{ textAlign: 'right', fontWeight: 'bold', color: debugStats.poseMatched === 'YES' ? '#4caf50' : '#ff9800' }}>{debugStats.poseMatched}</div>
+
+            <div>Final Accuracy:</div>
+            <div style={{ textAlign: 'right', fontWeight: 'bold' }}>{debugStats.finalAccuracy}%</div>
 
             <div>Angle Score:</div>
             <div style={{ textAlign: 'right' }}>{debugStats.angleScore}%</div>
@@ -730,8 +748,32 @@ export default function MediaPipePose({ session = [], initialPoseIndex = 0, onEx
             <div>Vis Score:</div>
             <div style={{ textAlign: 'right' }}>{debugStats.visibilityScore}</div>
 
-            <div>Final Accuracy:</div>
-            <div style={{ textAlign: 'right', fontWeight: 'bold' }}>{debugStats.finalAccuracy}%</div>
+            <div style={{ gridColumn: 'span 2', borderTop: '1px solid rgba(196,169,106,0.15)', paddingTop: '4px', marginTop: '4px' }}>
+              <div style={{ color: 'var(--text-secondary)', fontSize: '10px' }}>Required Angles:</div>
+              <div style={{ color: '#fff', fontSize: '9px', whiteSpace: 'normal', wordBreak: 'break-word', marginTop: '2px' }}>{debugStats.requiredAngles}</div>
+            </div>
+
+            <div style={{ gridColumn: 'span 2' }}>
+              <div style={{ color: 'var(--text-secondary)', fontSize: '10px' }}>Current Angles:</div>
+              <div style={{ color: '#fff', fontSize: '9px', whiteSpace: 'normal', wordBreak: 'break-word', marginTop: '2px' }}>{debugStats.currentAngles}</div>
+            </div>
+
+            <div style={{ gridColumn: 'span 2' }}>
+              <div style={{ color: 'var(--text-secondary)', fontSize: '10px' }}>Angle Errors:</div>
+              <div style={{ color: debugStats.angleErrors !== 'None' ? '#ff9800' : '#4caf50', fontSize: '9px', whiteSpace: 'normal', wordBreak: 'break-word', marginTop: '2px' }}>{debugStats.angleErrors}</div>
+            </div>
+
+            <div style={{ gridColumn: 'span 2', borderTop: '1px solid rgba(196,169,106,0.15)', paddingTop: '4px', marginTop: '4px' }}>
+              <div style={{ color: 'var(--text-secondary)', fontSize: '10px' }}>Pose Match Reason:</div>
+              <div style={{ color: '#4caf50', fontSize: '9px', whiteSpace: 'normal', wordBreak: 'break-word', marginTop: '2px' }}>{debugStats.poseMatchReason}</div>
+            </div>
+
+            <div style={{ gridColumn: 'span 2' }}>
+              <div style={{ color: 'var(--text-secondary)', fontSize: '10px' }}>Pose Rejection Reason:</div>
+              <div style={{ color: debugStats.poseRejectionReason !== 'None' ? '#ff9800' : '#4caf50', fontSize: '9px', whiteSpace: 'normal', wordBreak: 'break-word', marginTop: '2px' }}>{debugStats.poseRejectionReason}</div>
+            </div>
+
+            <div style={{ gridColumn: 'span 2', borderTop: '1px solid rgba(196,169,106,0.15)', paddingTop: '4px', marginTop: '4px' }}></div>
 
             <div>Speech Enabled:</div>
             <div style={{ textAlign: 'right' }}>{debugStats.speechEnabled ? 'YES' : 'NO'}</div>
