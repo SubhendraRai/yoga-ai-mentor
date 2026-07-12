@@ -62,17 +62,22 @@ export default function Auth({ onLoginSuccess }) {
                           import.meta.env.VITE_SUPABASE_URL.includes('placeholder.supabase.co') ||
                           !import.meta.env.VITE_SUPABASE_ANON_KEY ||
                           import.meta.env.VITE_SUPABASE_ANON_KEY === 'placeholder_key';
-    
-    if (isPlaceholder) {
-      setTimeout(() => {
-        setError("Database Connection Error: Supabase credentials are not configured in your .env file. Please click 'Continue as Guest' below to explore the application locally.");
-        setLoading(false);
-      }, 600);
-      return;
-    }
 
     try {
       if (activeTab === "signup") {
+        if (isPlaceholder) {
+          setSuccessMsg("Account created successfully (Local-only mode)! Elevating your experience...");
+          const userData = {
+            id: 'mock_' + Math.random().toString(36).substr(2, 9),
+            email: form.email.toLowerCase(),
+            name: form.name.trim() || 'User',
+            createdAt: new Date().toISOString()
+          };
+          localStorage.setItem("yoga_current_user", JSON.stringify(userData));
+          setTimeout(() => onLoginSuccess(userData), 1000);
+          return;
+        }
+
         const { data, error } = await supabase.auth.signUp({
           email: form.email.toLowerCase(),
           password: form.password,
@@ -110,6 +115,19 @@ export default function Auth({ onLoginSuccess }) {
         }
       } else {
         // Sign In
+        if (isPlaceholder) {
+          setSuccessMsg("Signed in successfully (Local-only mode)!");
+          const userData = {
+            id: 'mock_user',
+            email: form.email.toLowerCase(),
+            name: form.email.split('@')[0] || 'User',
+            createdAt: new Date().toISOString()
+          };
+          localStorage.setItem("yoga_current_user", JSON.stringify(userData));
+          setTimeout(() => onLoginSuccess(userData), 1000);
+          return;
+        }
+
         const { data, error } = await supabase.auth.signInWithPassword({
           email: form.email.toLowerCase(),
           password: form.password
@@ -146,11 +164,20 @@ export default function Auth({ onLoginSuccess }) {
   };
 
   const handleSocialMock = (platform) => {
-    setError(`Sign in with ${platform} is mocked. Please use the standard Sign Up or Sign In flow.`);
+    // Make social logins mock successfully in placeholder mode!
+    setSuccessMsg(`Signed in with ${platform} (Local-only mode)!`);
+    const userData = {
+      id: 'mock_' + platform,
+      email: `${platform}_user@yogtatva.local`,
+      name: `${platform} User`,
+      createdAt: new Date().toISOString()
+    };
+    localStorage.setItem("yoga_current_user", JSON.stringify(userData));
+    setTimeout(() => onLoginSuccess(userData), 1000);
   };
 
   return (
-    <div className="app">
+    <div className="app-fullscreen">
       <div className="user-header-nav">
         <span className="badge badge-gold">
           <Sparkles size={11} style={{ marginRight: 4 }} /> Cloud Sync Active

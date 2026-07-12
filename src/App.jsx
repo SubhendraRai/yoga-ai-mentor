@@ -233,7 +233,25 @@ export default function App() {
           )}
           
           {currentPage === 'pose' ? (
-            <MediaPipePose session={activeSession} initialPoseIndex={0} onExit={() => setCurrentPage('dashboard')} />
+            localStorage.getItem("pose_detection_unlocked") === "true" ? (
+              <MediaPipePose session={activeSession} initialPoseIndex={0} onExit={() => setCurrentPage('dashboard')} />
+            ) : (
+              <div className="card" style={{ maxWidth: '600px', margin: '100px auto', textAlign: 'center', padding: '40px 32px', borderRadius: '16px' }}>
+                <Lock size={48} style={{ color: 'var(--accent-gold)', margin: '0 auto 24px' }} />
+                <h2 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '28px', color: 'var(--text-primary)', marginBottom: '16px', fontWeight: '400' }}>Feature Temporarily Locked</h2>
+                <p style={{ color: 'var(--text-secondary)', marginBottom: '24px', lineHeight: '1.6', fontSize: '14px' }}>
+                  Live AI Pose Detection is currently locked in preparation for an upcoming surprise. 
+                  It will be unlocked once the green flag is given!
+                </p>
+                <button 
+                  className="submit-btn" 
+                  onClick={() => setCurrentPage('dashboard')}
+                  style={{ maxWidth: '200px', margin: '0 auto' }}
+                >
+                  Back to Dashboard
+                </button>
+              </div>
+            )
           ) : null}
           
           {currentPage === 'chat' && <MentorChat currentUser={currentUser} />}
