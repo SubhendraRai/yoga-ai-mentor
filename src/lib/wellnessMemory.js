@@ -393,7 +393,11 @@ export const WellnessMemory = {
   // ------------------------------------------------------------------------
   syncFromCloud: async () => {
     const userId = await WellnessMemory.getUserId();
-    if (!userId || userId === 'guest') return;
+    if (!userId || userId === 'guest' || userId.startsWith('mock_')) return;
+
+    const isPlaceholder = !import.meta.env.VITE_SUPABASE_URL || 
+                          import.meta.env.VITE_SUPABASE_URL.includes('placeholder.supabase.co');
+    if (isPlaceholder) return;
 
     const lastSync = localStorage.getItem('wellness_last_sync');
     if (lastSync && Date.now() - parseInt(lastSync) < 5 * 60 * 1000) {

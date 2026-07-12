@@ -27,39 +27,73 @@ export default function App() {
 
   useEffect(() => {
     // Check initial auth state
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (session?.user) {
-        setCurrentUser({
-          id: session.user.id,
-          email: session.user.email,
-          name: session.user.user_metadata?.name || 'User',
-        });
-        // Run sync in the background so the UI renders instantly
-        WellnessMemory.syncFromCloud().then(() => {
-          window.dispatchEvent(new Event('wellness_synced'));
-        });
-      }
-      setLoading(false);
-    });
+    const isPlaceholder = !import.meta.env.VITE_SUPABASE_URL || 
+                          import.meta.env.VITE_SUPABASE_URL.includes('placeholder.supabase.co');
 
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      if (session?.user) {
-        setLoading(true);
-        setCurrentUser({
-          id: session.user.id,
-          email: session.user.email,
-          name: session.user.user_metadata?.name || 'User',
-        });
-        setLoading(false);
-        // Run sync in background
-        WellnessMemory.syncFromCloud().then(() => {
-          window.dispatchEvent(new Event('wellness_synced'));
-        });
-      } else {
-        setCurrentUser(null);
+    // Restore guest or mock sessions from local storage immediately on startup
+    const stored = localStorage.getItem("yoga_current_user");
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        setCurrentUser(parsed);
+      } catch (e) {
+        console.error(e);
       }
-    });
+    }
+
+    if (isPlaceholder) {
+      setLoading(false);
+      return;
+    }
+
+    let subscription = null;
+
+    try {
+      supabase.auth.getSession().then(async ({ data: { session } }) => {
+        if (session?.user) {
+          setCurrentUser({
+            id: session.user.id,
+            email: session.user.email,
+            name: session.user.user_metadata?.name || 'User',
+          });
+          // Run sync in the background so the UI renders instantly
+          WellnessMemory.syncFromCloud().then(() => {
+            window.dispatchEvent(new Event('wellness_synced'));
+          });
+        }
+        setLoading(false);
+      }).catch(err => {
+        console.error(err);
+        setLoading(false);
+      });
+
+      // Listen for auth changes
+      const authListener = supabase.auth.onAuthStateChange(async (_event, session) => {
+        if (session?.user) {
+          setLoading(true);
+          setCurrentUser({
+            id: session.user.id,
+            email: session.user.email,
+            name: session.user.user_metadata?.name || 'User',
+          });
+          setLoading(false);
+          // Run sync in background
+          WellnessMemory.syncFromCloud().then(() => {
+            window.dispatchEvent(new Event('wellness_synced'));
+          });
+        } else {
+          // Only clear if not a local guest/mock user
+          const currentUserVal = localStorage.getItem("yoga_current_user");
+          if (!currentUserVal) {
+            setCurrentUser(null);
+          }
+        }
+      });
+      subscription = authListener.data.subscription;
+    } catch (e) {
+      console.error(e);
+      setLoading(false);
+    }
 
     // Check sidebar state
     const storedSidebar = localStorage.getItem("yoga_sidebar_collapsed");
@@ -67,7 +101,11 @@ export default function App() {
       setSidebarCollapsed(true);
     }
 
-    return () => subscription.unsubscribe();
+    return () => {
+      if (subscription) {
+        subscription.unsubscribe();
+      }
+    };
   }, []);
 
   const handleLoginSuccess = async (user) => {
