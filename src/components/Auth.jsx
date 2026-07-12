@@ -8,6 +8,7 @@ export default function Auth({ onLoginSuccess }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
+  const [agreed, setAgreed] = useState(false);
 
   const [form, setForm] = useState({
     name: "",
@@ -45,6 +46,10 @@ export default function Auth({ onLoginSuccess }) {
     }
     if (activeTab === "signup" && form.password !== form.confirmPassword) {
       setError("Passwords do not match.");
+      return false;
+    }
+    if (!agreed) {
+      setError("You must agree to the Privacy Policy and Terms of Service to continue.");
       return false;
     }
     return true;
@@ -372,6 +377,23 @@ export default function Auth({ onLoginSuccess }) {
               </div>
             </div>
           )}
+
+          <div className="field-checkbox" style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', marginBottom: '20px', padding: '0 4px' }}>
+            <input
+              type="checkbox"
+              id="agree-terms"
+              checked={agreed}
+              onChange={(e) => {
+                setAgreed(e.target.checked);
+                setError("");
+              }}
+              style={{ width: 'auto', marginTop: '2px', cursor: 'pointer' }}
+              required
+            />
+            <label htmlFor="agree-terms" style={{ margin: 0, textTransform: 'none', letterSpacing: 'normal', fontSize: '12px', color: 'var(--text-secondary)', cursor: 'pointer', lineHeight: '1.4' }}>
+              I agree to the <a href="#privacy" onClick={(e) => { e.preventDefault(); alert("Privacy Policy:\n\nAll biometric skeletal tracking runs entirely locally in your browser memory and is never uploaded or sent to any server. Your personal profile and journal data is securely stored locally."); }} style={{ color: 'var(--accent-gold)', textDecoration: 'underline', fontWeight: '500' }}>Privacy Policy</a> and <a href="#terms" onClick={(e) => { e.preventDefault(); alert("Terms and Conditions:\n\nYogTatva is an AI yoga mentor tool provided for informational purposes only. Consult a doctor before starting any physical exercise routine."); }} style={{ color: 'var(--accent-gold)', textDecoration: 'underline', fontWeight: '500' }}>Terms of Service</a>.
+            </label>
+          </div>
 
           <button type="submit" className="submit-btn" disabled={loading}>
             {loading ? (
