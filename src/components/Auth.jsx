@@ -58,6 +58,19 @@ export default function Auth({ onLoginSuccess }) {
     setError("");
     setSuccessMsg("");
 
+    const isPlaceholder = !import.meta.env.VITE_SUPABASE_URL || 
+                          import.meta.env.VITE_SUPABASE_URL.includes('placeholder.supabase.co') ||
+                          !import.meta.env.VITE_SUPABASE_ANON_KEY ||
+                          import.meta.env.VITE_SUPABASE_ANON_KEY === 'placeholder_key';
+    
+    if (isPlaceholder) {
+      setTimeout(() => {
+        setError("Database Connection Error: Supabase credentials are not configured in your .env file. Please click 'Continue as Guest' below to explore the application locally.");
+        setLoading(false);
+      }, 600);
+      return;
+    }
+
     try {
       if (activeTab === "signup") {
         const { data, error } = await supabase.auth.signUp({
@@ -119,7 +132,13 @@ export default function Auth({ onLoginSuccess }) {
         }
       }
     } catch (err) {
-      setError("An unexpected error occurred. Please try again.");
+      let friendlyError = "An unexpected error occurred. Please try again.";
+      if (err.message?.includes('Load failed') || err.message?.includes('Failed to fetch')) {
+        friendlyError = "Connection Error: Unable to reach the authentication server. Please check your network connection or configure Supabase.";
+      } else if (err.message) {
+        friendlyError = err.message;
+      }
+      setError(friendlyError);
       console.error(err);
     } finally {
       setLoading(false);
