@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ArrowLeft, CheckCircle, Activity, Timer, ChevronRight } from 'lucide-react';
+import { ArrowLeft, CheckCircle, Activity, ChevronRight } from 'lucide-react';
 import { speechHelper } from '../lib/speech';
 import { analyzePose } from '../lib/poseAnalyzer';
 import { playSound } from '../lib/audio';
@@ -59,8 +59,8 @@ export default function MediaPipePose({ session = [], initialPoseIndex = 0, onEx
   const [trackingStatus, setTrackingStatus] = useState('INITIALIZING'); // INITIALIZING | TRACKING_ACTIVE | STEP_BACK_WARNING | NO_BODY_DETECTED
   const bodyInFrameRef = useRef(false); // Guards the timer — only ticks when mandatory joints are visible
   const accuracyHistory = useRef([]);
-  const sessionStartTime = useRef(Date.now());
-  const lastTickTime = useRef(Date.now());
+  const sessionStartTime = useRef(0);
+  const lastTickTime = useRef(0);
   const accuracyRef = useRef(0);
   const lastUiUpdateTime = useRef(0);
   const mistakesTracker = useRef({});
@@ -114,11 +114,11 @@ export default function MediaPipePose({ session = [], initialPoseIndex = 0, onEx
   const framesDroppedCountRef = useRef(0);
   
   const cameraFramesCount = useRef(0);
-  const lastCameraFpsTime = useRef(Date.now());
+  const lastCameraFpsTime = useRef(0);
   const currentCameraFps = useRef(0);
 
   const poseFramesCount = useRef(0);
-  const lastPoseFpsTime = useRef(Date.now());
+  const lastPoseFpsTime = useRef(0);
   const currentPoseFps = useRef(0);
 
   const lastValidPoseTimeRef = useRef(null);
@@ -154,7 +154,20 @@ export default function MediaPipePose({ session = [], initialPoseIndex = 0, onEx
   };
   
   // Current pose data
-  const currentPose = safeSession.length > currentIndex ? safeSession[currentIndex] : DEFAULT_POSE;
+  const activePose = safeSession.length > currentIndex ? safeSession[currentIndex] : DEFAULT_POSE;
+  const currentPose = {
+    ...DEFAULT_POSE,
+    ...activePose,
+    englishName: activePose?.englishName || activePose?.name || DEFAULT_POSE.englishName,
+  };
+
+  useEffect(() => {
+    const now = Date.now();
+    sessionStartTime.current = now;
+    lastTickTime.current = now;
+    lastCameraFpsTime.current = now;
+    lastPoseFpsTime.current = now;
+  }, []);
 
   // Initialize timer when pose changes
   useEffect(() => {
@@ -212,7 +225,7 @@ export default function MediaPipePose({ session = [], initialPoseIndex = 0, onEx
     return () => cancelAnimationFrame(requestRef.current);
   }, [sessionComplete, currentPose.id, currentPose.duration]);
 
-  const handlePoseComplete = () => {
+  function handlePoseComplete() {
     playSound.chime();
     speakFeedbackThrottled("Pose completed successfully. Great job.", true);
     
@@ -221,9 +234,9 @@ export default function MediaPipePose({ session = [], initialPoseIndex = 0, onEx
     } else {
       finishSession();
     }
-  };
+  }
 
-  const finishSession = async () => {
+  async function finishSession() {
     setSessionComplete(true);
     const totalTimeSecs = Math.round((Date.now() - sessionStartTime.current) / 1000);
     const avgAcc = accuracyHistory.current.length > 0 
@@ -258,7 +271,7 @@ export default function MediaPipePose({ session = [], initialPoseIndex = 0, onEx
     const pastSessions = WellnessMemory.getSessionHistory(30);
     const aiInsight = await generateSessionSummary(finalStats, pastSessions);
     await WellnessMemory.addObservation(aiInsight);
-  };
+  }
 
   // MediaPipe Initialization
   useEffect(() => {
@@ -473,7 +486,11 @@ export default function MediaPipePose({ session = [], initialPoseIndex = 0, onEx
               lowestJointName: lowestJoint,
               lowestJointVis: lowestVis,
               poseLossReason: poseLossReason,
-              lastValidSecsAgo: analysis.accuracy >= 85 ? 'Active' : lastValidSecs,
+              lastValidSecsAgo: analysis.accuracy >= 85
+                ? 'Active'
+                : lastValidPoseTimeRef.current
+                  ? `${((now - lastValidPoseTimeRef.current) / 1000).toFixed(1)}s ago`
+                  : 'Never',
               currentPoseName: `${currentPose.englishName} (${currentPose.id})`,
               poseMatched: analysis.accuracy >= 85 ? 'YES' : 'NO',
               angleScore: analysis.angleScore !== undefined ? analysis.angleScore : analysis.accuracy,

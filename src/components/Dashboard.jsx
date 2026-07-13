@@ -49,7 +49,7 @@ export default function Dashboard({ onNavigate, onStartSession, onLearnMore }) {
     setShowWalkthrough(false);
   };
 
-  const loadDashboardData = async () => {
+  async function loadDashboardData() {
     const context = WellnessMemory.getContextForAI();
     const todayStr = new Date().toISOString().split('T')[0];
     
@@ -91,7 +91,7 @@ export default function Dashboard({ onNavigate, onStartSession, onLearnMore }) {
     } else {
       handleGeneratePlan(profile, todayStr, profileFingerprint);
     }
-  };
+  }
 
   const handleGeneratePlan = (currentProfile = profile, todayStr = new Date().toISOString().split('T')[0], fingerprint = '') => {
     setLoadingPlan(true);

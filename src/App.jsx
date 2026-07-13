@@ -21,7 +21,6 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [poseCheckPose, setPoseCheckPose] = useState(null);
   const [selectedPose, setSelectedPose] = useState(null);
   const [activeSession, setActiveSession] = useState(null);
 
@@ -266,8 +265,8 @@ export default function App() {
           {currentPage === 'yoga' && (
             <YogaSession 
               session={activeSession}
-              onStartPoseCheck={(poseName) => { 
-                setPoseCheckPose(poseName); 
+              onStartPoseCheck={(pose) => {
+                setActiveSession([pose]);
                 setCurrentPage('pose'); 
               }} 
               onComplete={() => setCurrentPage('dashboard')} 

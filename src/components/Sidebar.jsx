@@ -1,7 +1,7 @@
 import { LayoutDashboard, ClipboardList, Flower2, Camera, MessageCircle, Heart, Settings, LogOut, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { Compass } from 'lucide-react';
 
-export default function Sidebar({ currentPage, onNavigate, user, onLogout, collapsed, onToggleCollapse, mobileOpen, onCloseMobile }) {
+export default function Sidebar({ currentPage, onNavigate, user, onLogout, collapsed, onToggleCollapse, mobileOpen }) {
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={18} /> },
     { id: 'plan', label: "Today's Plan", icon: <ClipboardList size={18} /> },

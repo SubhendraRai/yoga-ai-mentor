@@ -124,7 +124,7 @@ export default function YogaSession({ session, onComplete, onStartPoseCheck }) {
           <button 
             className="btn-outline" 
             style={{ background: 'var(--bg-secondary)' }}
-            onClick={() => onStartPoseCheck(englishName)}
+            onClick={() => onStartPoseCheck(currentPose)}
           >
             <Camera size={14} /> Check My Pose
           </button>

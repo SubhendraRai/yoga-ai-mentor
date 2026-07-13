@@ -1,5 +1,3 @@
-import React from 'react';
-
 export default function SkeletonLoader({ type = 'text', count = 1 }) {
   const getStyle = () => {
     switch(type) {
