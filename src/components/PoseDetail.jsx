@@ -5,6 +5,26 @@ export default function PoseDetail({ pose, onBack, onStartSession }) {
   if (!pose) return null;
 
   const displayImageUrl = getPoseImageUrl(pose.englishName || pose.name) || pose.imageUrl;
+  
+  // Safe fallbacks to prevent crashes on dynamic AI-updated poses
+  const difficulty = pose.difficulty || 'All Levels';
+  const duration = pose.duration || pose.duration_mins || 3;
+  const fullBenefits = pose.fullBenefits || `A therapeutic posture targeting flexibility, core stability, and overall body-breath coordination. Beneficial for stress reduction and physical awareness.`;
+  const steps = pose.steps || [
+    "Step into a clear area and prepare mentally for the posture.",
+    "Engage your core muscles and maintain steady, even breathing.",
+    "Slowly transition into the alignment, holding the pose relative to your current limits.",
+    "Gently release and return to a neutral starting position."
+  ];
+  const aiTip = pose.aiTip || "Keep your neck and shoulders relaxed; synchronize the movement with a slow, deep breath.";
+  const mistakes = pose.mistakes || [
+    "Holding the breath or tensing up the shoulder muscles.",
+    "Forcing the alignment beyond your body's comfortable limit."
+  ];
+  const precautions = pose.precautions || [
+    "Modify or stop immediately if you feel sharp pain in your joints or back.",
+    "Seek support or use a wall/props for balance if needed."
+  ];
 
   return (
     <div style={{ maxWidth: '800px', margin: '0 auto', animation: 'fadeUp 0.4s ease both' }}>
@@ -20,13 +40,13 @@ export default function PoseDetail({ pose, onBack, onStartSession }) {
         <div style={{ height: '300px', width: '100%', position: 'relative' }}>
           <img 
             src={displayImageUrl} 
-            alt={pose.englishName} 
+            alt={pose.englishName || pose.name} 
             style={{ width: '100%', height: '100%', objectFit: 'cover' }}
           />
           <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.7), transparent)' }} />
           <div style={{ position: 'absolute', bottom: '32px', left: '32px', color: '#fff' }}>
             <h1 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '42px', fontWeight: 300, marginBottom: '8px' }}>
-              {pose.englishName}
+              {pose.englishName || pose.name}
             </h1>
             <h2 style={{ fontSize: '18px', opacity: 0.8, letterSpacing: '0.05em' }}>
               {pose.sanskritName}
@@ -37,15 +57,15 @@ export default function PoseDetail({ pose, onBack, onStartSession }) {
         <div style={{ padding: '32px' }}>
           <div style={{ display: 'flex', gap: '12px', marginBottom: '32px' }}>
             <span className="badge" style={{ background: 'var(--bg-tertiary)', color: 'var(--text-primary)', padding: '6px 12px', borderRadius: '4px', fontSize: '13px' }}>
-              Difficulty: {pose.difficulty}
+              Difficulty: {difficulty}
             </span>
             <span className="badge" style={{ background: 'var(--bg-tertiary)', color: 'var(--text-primary)', padding: '6px 12px', borderRadius: '4px', fontSize: '13px' }}>
-              Duration: {pose.duration} mins
+              Duration: {duration} mins
             </span>
           </div>
 
           <p style={{ color: 'var(--text-body)', fontSize: '16px', lineHeight: '1.8', marginBottom: '32px' }}>
-            {pose.fullBenefits}
+            {fullBenefits}
           </p>
 
           <button className="submit-btn" onClick={() => onStartSession(pose)} style={{ maxWidth: '250px', marginBottom: '40px' }}>
@@ -59,7 +79,7 @@ export default function PoseDetail({ pose, onBack, onStartSession }) {
                 Step-by-Step Instructions
               </h3>
               <ol style={{ paddingLeft: '20px', color: 'var(--text-body)', fontSize: '15px', lineHeight: '1.8' }}>
-                {pose.steps.map((step, idx) => (
+                {steps.map((step, idx) => (
                   <li key={idx} style={{ marginBottom: '12px' }}>{step}</li>
                 ))}
               </ol>
@@ -71,7 +91,7 @@ export default function PoseDetail({ pose, onBack, onStartSession }) {
                   <Sparkles size={18} /> AI Coach Tip
                 </h3>
                 <p style={{ color: 'var(--text-primary)', fontSize: '14px', lineHeight: '1.6' }}>
-                  "{pose.aiTip}"
+                  "{aiTip}"
                 </p>
               </div>
 
@@ -79,7 +99,7 @@ export default function PoseDetail({ pose, onBack, onStartSession }) {
                 Common Mistakes
               </h3>
               <ul style={{ paddingLeft: '20px', color: 'var(--text-body)', fontSize: '14px', lineHeight: '1.6', marginBottom: '24px' }}>
-                {pose.mistakes.map((mistake, idx) => (
+                {mistakes.map((mistake, idx) => (
                   <li key={idx} style={{ marginBottom: '8px' }}>{mistake}</li>
                 ))}
               </ul>
@@ -88,7 +108,7 @@ export default function PoseDetail({ pose, onBack, onStartSession }) {
                 <AlertCircle size={18} /> Precautions
               </h3>
               <ul style={{ paddingLeft: '20px', color: 'var(--text-body)', fontSize: '14px', lineHeight: '1.6' }}>
-                {pose.precautions.map((precaution, idx) => (
+                {precautions.map((precaution, idx) => (
                   <li key={idx} style={{ marginBottom: '8px' }}>{precaution}</li>
                 ))}
               </ul>
