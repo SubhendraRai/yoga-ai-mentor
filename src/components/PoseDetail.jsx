@@ -1,7 +1,10 @@
 import { ArrowLeft, Play, AlertCircle, Sparkles } from 'lucide-react';
+import { getPoseImageUrl } from '../lib/poseImages';
 
 export default function PoseDetail({ pose, onBack, onStartSession }) {
   if (!pose) return null;
+
+  const displayImageUrl = getPoseImageUrl(pose.englishName || pose.name) || pose.imageUrl;
 
   return (
     <div style={{ maxWidth: '800px', margin: '0 auto', animation: 'fadeUp 0.4s ease both' }}>
@@ -16,7 +19,7 @@ export default function PoseDetail({ pose, onBack, onStartSession }) {
       <div className="card" style={{ padding: 0, overflow: 'hidden', marginBottom: '32px' }}>
         <div style={{ height: '300px', width: '100%', position: 'relative' }}>
           <img 
-            src={pose.imageUrl} 
+            src={displayImageUrl} 
             alt={pose.englishName} 
             style={{ width: '100%', height: '100%', objectFit: 'cover' }}
           />

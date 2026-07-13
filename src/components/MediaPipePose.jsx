@@ -6,6 +6,7 @@ import { analyzePose } from '../lib/poseAnalyzer';
 import { playSound } from '../lib/audio';
 import { WellnessMemory } from '../lib/wellnessMemory';
 import { generateSessionSummary } from '../lib/ai';
+import { getPoseImageUrl } from '../lib/poseImages';
 
 // Mapping indices to human-friendly key joint names
 const KEY_JOINTS = {
@@ -665,7 +666,7 @@ export default function MediaPipePose({ session = [], initialPoseIndex = 0, onEx
           {currentPose.id !== 'generic' && (
             <div style={{ width: '160px', height: '120px', borderRadius: '16px', overflow: 'hidden', border: '2px solid rgba(255,255,255,0.2)', background: '#111', position: 'relative', boxShadow: '0 8px 32px rgba(0,0,0,0.5)' }}>
               <img 
-                src={currentPose.imageUrl} 
+                src={getPoseImageUrl(currentPose.englishName || currentPose.name) || currentPose.imageUrl} 
                 alt={currentPose.englishName} 
                 style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
               />

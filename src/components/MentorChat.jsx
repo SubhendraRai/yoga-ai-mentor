@@ -4,6 +4,7 @@ import { chatWithMentor } from '../lib/ai';
 import { getChatHistory, saveChatMessage, getUserMemories, extractAndSaveMemories } from '../lib/supabaseMemory';
 import { playSound } from '../lib/audio';
 import { Send, Trash2, Compass, CheckCircle2 } from 'lucide-react';
+import { getPoseImageUrl } from '../lib/poseImages';
 
 // ─── Parse and apply an UPDATE_ROUTINE JSON action block from AI response ─────
 function parseAndApplyRoutineUpdate(rawResponse) {
@@ -22,7 +23,7 @@ function parseAndApplyRoutineUpdate(rawResponse) {
           sanskritName: p.sanskritName || '',
           duration: p.duration_mins || 3,
           shortBenefits: p.benefits || [],
-          imageUrl: `https://placehold.co/800x600/13131a/c4a96a?text=${encodeURIComponent(p.name)}&font=Playfair+Display`,
+          imageUrl: getPoseImageUrl(p.name),
           id: p.id || p.name.toLowerCase().replace(/[^a-z0-9]/g, '_')
         }));
         const planPayload = JSON.stringify({ message: message || 'Your personalised AI routine.', poses: normalizedPoses });

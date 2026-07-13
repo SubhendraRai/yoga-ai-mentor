@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { RefreshCw, Play, Info } from 'lucide-react';
+import { getPoseImageUrl } from '../lib/poseImages';
 
 export default function WellnessPlan({ plan, onRegenerate, onStartSession, onLearnMore }) {
   const [parsedPlan, setParsedPlan] = useState(null);
@@ -13,19 +14,17 @@ export default function WellnessPlan({ plan, onRegenerate, onStartSession, onLea
         setParsedPlan(data);
         
         if (data.poses && data.poses.length > 0) {
-          const firstPose = data.poses[0];
-          // New AI format uses { englishName, sanskritName, duration, shortBenefits, imageUrl }
-          // Old rules-engine format uses { englishName, sanskritName, duration, shortBenefits, imageUrl } too after normalization
-          // Legacy library format may have a different shape — normalise everything here
-          const posesWithImages = data.poses.map(pose => ({
-            id: pose.id || (pose.englishName || pose.name || '').toLowerCase().replace(/[^a-z0-9]/g, '_'),
-            englishName: pose.englishName || pose.name || 'Yoga Pose',
-            sanskritName: pose.sanskritName || '',
-            duration: pose.duration || pose.duration_mins || 3,
-            shortBenefits: pose.shortBenefits || pose.benefits || [],
-            imageUrl: pose.imageUrl
-              || `https://placehold.co/800x600/13131a/c4a96a?text=${encodeURIComponent(pose.englishName || pose.name || 'Pose')}&font=Playfair+Display`
-          }));
+          const posesWithImages = data.poses.map(pose => {
+            const englishName = pose.englishName || pose.name || 'Yoga Pose';
+            return {
+              id: pose.id || englishName.toLowerCase().replace(/[^a-z0-9]/g, '_'),
+              englishName,
+              sanskritName: pose.sanskritName || '',
+              duration: pose.duration || pose.duration_mins || 3,
+              shortBenefits: pose.shortBenefits || pose.benefits || [],
+              imageUrl: getPoseImageUrl(englishName) || pose.imageUrl
+            };
+          });
           setRecommendedPoses(posesWithImages);
         } else if (data.poseIds) {
           setRecommendedPoses([]);
