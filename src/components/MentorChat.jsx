@@ -141,19 +141,20 @@ export default function MentorChat({ currentUser, onNavigate }) {
     if (currentUser?.id) {
       await saveChatMessage(currentUser.id, 'user', text.trim());
       
-      // Check for AI Mood Override in the background
-      extractAndSaveMemories(currentUser.id, text.trim()).then(result => {
-        if (result && result.moodOverride) {
-          console.log("AI Overriding Mood from Chat:", result.moodOverride);
-          WellnessMemory.logMood(result.moodOverride, "AI Detected Mood Shift");
-          window.dispatchEvent(new Event('wellness_synced')); // Trigger UI refresh
-        }
-      });
+      // Learn before replying so new facts affect the very next mentor response.
+      const memoryResult = await extractAndSaveMemories(currentUser.id, text.trim());
+      if (memoryResult?.moodOverride) {
+        console.log("AI Overriding Mood from Chat:", memoryResult.moodOverride);
+        await WellnessMemory.logMood(memoryResult.moodOverride, "AI Detected Mood Shift");
+      }
+      const refreshedMemories = await getUserMemories(currentUser.id);
+      setUserMemories(refreshedMemories);
     }
 
     try {
       const baseContext = WellnessMemory.getContextForAI();
-      const fullContext = `${baseContext}\n\nImportant User Memories:\n${userMemories || 'None yet.'}`;
+      const latestMemories = currentUser?.id ? await getUserMemories(currentUser.id) : userMemories;
+      const fullContext = `${baseContext}\n\nImportant User Memories:\n${latestMemories || 'None yet.'}`;
       
       const response = await chatWithMentor(fullContext, updatedMessages, text.trim());
       

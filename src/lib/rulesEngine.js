@@ -55,7 +55,7 @@ function getPoseCountForDuration(timePerDay) {
 }
 
 // ─── Main Plan Generator ─────────────────────────────────────────────────────
-export function generateRuleBasedPlan(profile, moodHistory, sleepHistory) {
+export function generateRuleBasedPlan(profile, moodHistory, sleepHistory, activityHistory = [], sessionHistory = []) {
   const name = profile?.name || 'friend';
   const goals = profile?.goals || [];
   const fitnessLevel = profile?.fitnessLevel || 'beginner';
@@ -70,13 +70,26 @@ export function generateRuleBasedPlan(profile, moodHistory, sleepHistory) {
   const isLowMood = recentMood && recentMood.level <= 2;
   const isHighStress = stressLevel >= 7;
   const hasBackPain = healthConditions.includes('back') || healthConditions.includes('spine') || healthConditions.includes('lumbar');
+  const last24Hours = Date.now() - (24 * 60 * 60 * 1000);
+  const recentTrainingMinutes = activityHistory
+    .filter(activity => new Date(activity.timestamp).getTime() >= last24Hours)
+    .reduce((total, activity) => total + (Number(activity.duration) || 0), 0);
+  const latestSession = sessionHistory[sessionHistory.length - 1];
+  const needsRecovery = recentTrainingMinutes >= Math.max(30, (parseInt(timePerDay) || 20) * 2);
+  const needsTechniqueFocus = latestSession
+    && Number(latestSession.average_accuracy) > 0
+    && Number(latestSession.average_accuracy) < 70;
 
   // ── 2. Determine primary + secondary focus categories ──
   let primaryCategories = [];
   let message = '';
   let dayTheme = 'balance';
 
-  if (isLowSleep) {
+  if (needsRecovery) {
+    primaryCategories = ['restorative', 'flexibility', 'stress'];
+    message = `${name}, you have already put in ${Math.round(recentTrainingMinutes)} minutes of movement in the past day. Today's plan prioritizes recovery, mobility, and calming your nervous system so you can progress sustainably.`;
+    dayTheme = 'recovery';
+  } else if (isLowSleep) {
     primaryCategories = ['restorative', 'back_pain', 'stress'];
     message = `${name}, your body needs recovery today — you haven't had enough sleep. This gentle restorative flow will calm your nervous system and let you rest without exhaustion.`;
     dayTheme = 'recovery';
@@ -174,6 +187,10 @@ export function generateRuleBasedPlan(profile, moodHistory, sleepHistory) {
   // ── 6. Append high-stress note if relevant ──
   if (isHighStress && dayTheme !== 'recovery' && dayTheme !== 'lift') {
     message += ` I noticed your stress level is high — take extra time in each pose and prioritize breath over depth.`;
+  }
+
+  if (needsTechniqueFocus) {
+    message += ` Your most recent posture score suggests keeping today's transitions slow and deliberate; quality matters more than depth.`;
   }
 
   return { message, poses: selectedPoses };

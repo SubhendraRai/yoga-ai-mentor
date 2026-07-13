@@ -125,6 +125,8 @@ Respond ONLY in valid JSON format:
         } else {
           await supabase.from('memories').insert([{ user_id: userId, memory: cleanMemory }]);
         }
+        parsed.fact = cleanMemory;
+        WellnessMemory.notifyPersonalizationChange('memory');
         console.log("Memory Extracted & Saved:", cleanMemory);
       }
       

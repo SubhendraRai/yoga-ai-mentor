@@ -11,6 +11,13 @@ const generateUUID = () => {
 export const WellnessMemory = {
   // Sync flag
   isSyncing: false,
+
+  notifyPersonalizationChange: (reason) => {
+    if (typeof window === 'undefined') return;
+    window.dispatchEvent(new CustomEvent('wellness_personalization_updated', {
+      detail: { reason, updatedAt: new Date().toISOString() }
+    }));
+  },
   
   // Scoping helpers to isolate data by active user
   getUserIdSync: () => {
@@ -60,6 +67,7 @@ export const WellnessMemory = {
     const current = WellnessMemory.getProfile() || {};
     const updated = { ...current, ...updates };
     WellnessMemory.setItem('profile', JSON.stringify(updated));
+    WellnessMemory.notifyPersonalizationChange('profile');
     
     // Cloud Sync
     const userId = await WellnessMemory.getUserId();
@@ -104,6 +112,7 @@ export const WellnessMemory = {
     const history = WellnessMemory.getMoodHistory(30);
     history.push(entry);
     WellnessMemory.setItem('mood', JSON.stringify(history));
+    WellnessMemory.notifyPersonalizationChange('mood');
 
     // Cloud Sync
     const userId = await WellnessMemory.getUserId();
@@ -138,6 +147,7 @@ export const WellnessMemory = {
     const history = WellnessMemory.getSleepHistory(30);
     history.push(entry);
     WellnessMemory.setItem('sleep', JSON.stringify(history));
+    WellnessMemory.notifyPersonalizationChange('sleep');
 
     // Cloud Sync
     const userId = await WellnessMemory.getUserId();
@@ -167,6 +177,7 @@ export const WellnessMemory = {
     const history = WellnessMemory.getActivityHistory(30);
     history.push(entry);
     WellnessMemory.setItem('activities', JSON.stringify(history));
+    WellnessMemory.notifyPersonalizationChange('activity');
 
     // Cloud Sync
     const userId = await WellnessMemory.getUserId();
@@ -193,6 +204,7 @@ export const WellnessMemory = {
     const history = WellnessMemory.getSessionHistory(30);
     history.push(entry);
     WellnessMemory.setItem('sessions', JSON.stringify(history));
+    WellnessMemory.notifyPersonalizationChange('session');
 
     // Cloud Sync
     const userId = await WellnessMemory.getUserId();
@@ -267,6 +279,7 @@ export const WellnessMemory = {
     // Keep last 100 observations
     if (history.length > 100) history.shift();
     WellnessMemory.setItem('observations', JSON.stringify(history));
+    WellnessMemory.notifyPersonalizationChange('observation');
 
     // Cloud Sync
     const userId = await WellnessMemory.getUserId();
@@ -360,9 +373,13 @@ export const WellnessMemory = {
     const userName = profile?.name || localUser?.name || 'Friend';
 
     const latestMood = WellnessMemory.getLatestMood();
+    const latestSleep = WellnessMemory.getSleepHistory(7).at(-1);
+    const recentActivities = WellnessMemory.getActivityHistory(7);
+    const latestSession = WellnessMemory.getSessionHistory(7).at(-1);
     const streak = WellnessMemory.getStreak();
     const score = WellnessMemory.calculateWellnessScore();
     const observations = WellnessMemory.getObservations().slice(-5).map(o => o.text);
+    const memories = JSON.parse(WellnessMemory.getItem('memories') || '[]').slice(-10);
 
     let context = `USER PROFILE:\n`;
     context += `Name: ${userName}\n`;
@@ -381,13 +398,46 @@ export const WellnessMemory = {
     context += `Wellness Score: ${score.total}/100\n`;
     context += `Activity Streak: ${streak} days\n`;
     if (latestMood) context += `Latest Mood: ${latestMood.level}/5 (${latestMood.note || 'No note'})\n`;
+    if (latestSleep) context += `Latest Sleep: ${latestSleep.hours} hours, quality ${latestSleep.quality || 3}/5\n`;
+    context += `Movement in last 7 days: ${Math.round(recentActivities.reduce((total, activity) => total + (Number(activity.duration) || 0), 0))} minutes\n`;
+    if (latestSession?.average_accuracy) context += `Latest posture-session accuracy: ${latestSession.average_accuracy}%\n`;
     
     if (observations.length > 0) {
       context += `\nAI MEMORY / PAST OBSERVATIONS:\n`;
       observations.forEach(o => { context += `- ${o}\n`; });
     }
 
+    if (memories.length > 0) {
+      context += `\nSAVED PERSONAL PREFERENCES AND CONTEXT:\n`;
+      memories.forEach(memory => { context += `- ${memory}\n`; });
+    }
+
     return context;
+  },
+
+  getPersonalizationFingerprint: () => {
+    const profile = WellnessMemory.getProfile() || {};
+    const getRecent = (items, fields) => items.map(item =>
+      fields.reduce((result, field) => ({ ...result, [field]: item[field] }), {})
+    );
+
+    return JSON.stringify({
+      profile: {
+        goals: profile.goals || [],
+        fitnessLevel: profile.fitnessLevel || 'beginner',
+        timePerDay: profile.timePerDay || '20',
+        healthConditions: profile.healthConditions || '',
+        stressLevel: profile.stressLevel || '5',
+        preferredTime: profile.preferredTime || '',
+        daysPerWeek: profile.daysPerWeek || '',
+      },
+      mood: getRecent(WellnessMemory.getMoodHistory(7), ['level', 'note', 'timestamp']),
+      sleep: getRecent(WellnessMemory.getSleepHistory(7), ['hours', 'quality', 'timestamp']),
+      activity: getRecent(WellnessMemory.getActivityHistory(7), ['type', 'name', 'duration', 'timestamp']),
+      sessions: getRecent(WellnessMemory.getSessionHistory(7), ['average_accuracy', 'total_time', 'completed_poses', 'timestamp']),
+      observations: WellnessMemory.getObservations().slice(-5).map(item => item.text),
+      memories: JSON.parse(WellnessMemory.getItem('memories') || '[]').slice(-10),
+    });
   },
 
   // ------------------------------------------------------------------------
@@ -440,10 +490,11 @@ export const WellnessMemory = {
 
     try {
       // Execute all 3 fetches concurrently to speed up login time
-      const [profileRes, obsRes, logsRes] = await Promise.allSettled([
+      const [profileRes, obsRes, logsRes, memoriesRes] = await Promise.allSettled([
         supabase.from('profiles').select('*').eq('id', userId).single(),
         supabase.from('ai_observations').select('*').eq('user_id', userId).order('created_at', { ascending: true }).limit(100),
-        supabase.from('wellness_logs').select('*').eq('user_id', userId).order('created_at', { ascending: true }).limit(200)
+        supabase.from('wellness_logs').select('*').eq('user_id', userId).order('created_at', { ascending: true }).limit(200),
+        supabase.from('memories').select('memory').eq('user_id', userId).order('created_at', { ascending: true }).limit(100)
       ]);
 
       // 1. Process Profile
@@ -511,13 +562,40 @@ export const WellnessMemory = {
           duration: l.value,
           timestamp: l.created_at
         }));
+
+        const sessions = logs.filter(l => l.log_type === 'session_stats').map(l => {
+          let stats = {};
+          try {
+            stats = JSON.parse(l.note || '{}');
+          } catch {
+            stats = {};
+          }
+          return {
+            id: l.id,
+            average_accuracy: Number(stats.average_accuracy) || Number(l.value) || 0,
+            total_time: Number(stats.total_time) || 0,
+            completed_poses: Number(stats.completed_poses) || 0,
+            common_mistakes: stats.common_mistakes || [],
+            timestamp: l.created_at
+          };
+        });
         
         mergeData('mood', moods);
         mergeData('sleep', sleeps);
         mergeData('activities', activities);
+        mergeData('sessions', sessions);
+      }
+
+      if (memoriesRes.status === 'fulfilled' && memoriesRes.value.data) {
+        const cloudMemories = memoriesRes.value.data
+          .map(entry => entry.memory)
+          .filter(Boolean);
+        const localMemories = JSON.parse(WellnessMemory.getItem('memories') || '[]');
+        WellnessMemory.setItem('memories', [...new Set([...localMemories, ...cloudMemories])].slice(-100));
       }
       
       WellnessMemory.setItem('last_sync', Date.now().toString());
+      WellnessMemory.notifyPersonalizationChange('cloud_sync');
     } catch (e) {
       console.error("Failed to sync from cloud", e);
     }
