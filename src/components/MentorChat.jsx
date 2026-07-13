@@ -86,7 +86,6 @@ export default function MentorChat({ currentUser, onNavigate }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [userMemories, setUserMemories] = useState('');
   const [routineToast, setRoutineToast] = useState(false);
   const messagesEndRef = useRef(null);
 
@@ -101,9 +100,6 @@ export default function MentorChat({ currentUser, onNavigate }) {
   useEffect(() => {
     async function loadData() {
       if (!currentUser?.id) return;
-      
-      const memories = await getUserMemories(currentUser.id);
-      setUserMemories(memories);
       
       const history = await getChatHistory(currentUser.id);
       if (history && history.length > 0) {
@@ -147,16 +143,11 @@ export default function MentorChat({ currentUser, onNavigate }) {
         console.log("AI Overriding Mood from Chat:", memoryResult.moodOverride);
         await WellnessMemory.logMood(memoryResult.moodOverride, "AI Detected Mood Shift");
       }
-      const refreshedMemories = await getUserMemories(currentUser.id);
-      setUserMemories(refreshedMemories);
     }
 
     try {
       const baseContext = WellnessMemory.getContextForAI();
-      const latestMemories = currentUser?.id ? await getUserMemories(currentUser.id) : userMemories;
-      const fullContext = `${baseContext}\n\nImportant User Memories:\n${latestMemories || 'None yet.'}`;
-      
-      const response = await chatWithMentor(fullContext, updatedMessages, text.trim());
+      const response = await chatWithMentor(baseContext, updatedMessages, text.trim());
       
       if (response.success) {
         playSound.chime();
