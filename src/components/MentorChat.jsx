@@ -4,7 +4,23 @@ import { chatWithMentor } from '../lib/ai';
 import { getChatHistory, saveChatMessage, getUserMemories, extractAndSaveMemories } from '../lib/supabaseMemory';
 import { playSound } from '../lib/audio';
 import { Send, Trash2, Compass, CheckCircle2 } from 'lucide-react';
-import { getPoseImageUrl } from '../lib/poseImages';
+import { getPoseImageUrl, POSE_IMAGE_MAPPING } from '../lib/poseImages';
+
+// ─── Find any of the 82 poses mentioned in chat text ────────────────────────
+function findMentionedPose(text) {
+  if (!text) return null;
+  const lowerText = text.toLowerCase();
+  for (const poseName of Object.keys(POSE_IMAGE_MAPPING)) {
+    if (poseName.length > 5 && lowerText.includes(poseName.toLowerCase())) {
+      return poseName;
+    }
+    const cleanName = poseName.replace(/\s*\(or\s+[^)]+\)/i, '');
+    if (cleanName.length > 5 && lowerText.includes(cleanName.toLowerCase())) {
+      return poseName;
+    }
+  }
+  return null;
+}
 
 // ─── Parse and apply an UPDATE_ROUTINE JSON action block from AI response ─────
 function parseAndApplyRoutineUpdate(rawResponse) {
@@ -179,11 +195,42 @@ export default function MentorChat({ currentUser, onNavigate }) {
       </div>
 
       <div className="chat-messages">
-        {messages.map((msg, i) => (
-          <div key={i} className={`chat-bubble ${msg.role}`} style={{ opacity: msg.isError ? 0.7 : 1 }}>
-            {msg.text}
-          </div>
-        ))}
+        {messages.map((msg, i) => {
+          const mentionedPose = findMentionedPose(msg.text);
+          const imgUrl = mentionedPose ? getPoseImageUrl(mentionedPose) : null;
+          return (
+            <div 
+              key={i} 
+              className={`chat-bubble ${msg.role}`} 
+              style={{ 
+                opacity: msg.isError ? 0.7 : 1,
+                position: 'relative',
+                paddingRight: imgUrl ? '64px' : '16px',
+                minHeight: imgUrl ? '60px' : 'auto'
+              }}
+            >
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                {msg.text}
+              </div>
+              {imgUrl && (
+                <div style={{
+                  position: 'absolute',
+                  top: '8px',
+                  right: '8px',
+                  width: '44px',
+                  height: '44px',
+                  borderRadius: '8px',
+                  overflow: 'hidden',
+                  border: '1px solid var(--accent-gold-dim)',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+                  background: '#111'
+                }} title={mentionedPose}>
+                  <img src={imgUrl} alt={mentionedPose} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                </div>
+              )}
+            </div>
+          );
+        })}
         {isLoading && (
           <div className="typing-indicator">
             <div className="typing-dot" />
