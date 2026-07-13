@@ -1,3 +1,4 @@
+// src/lib/ai.js
 // ─────────────────────────────────────────────────────────────
 // gemini.js — Centralized Gemini REST API Helper
 // All functions return { success: true, text } or { success: false, error }
@@ -13,6 +14,96 @@ const getGeminiEndpoint = (key) => `https://generativelanguage.googleapis.com/v1
 const ANTHROPIC_ENDPOINT = '/api/anthropic'; // Rewritten by vite config / vercel
 
 const GROQ_API_KEY = import.meta.env.VITE_GROQ_API_KEY;
+
+const ALLOWED_YOGA_POSES = [
+  "Akarna Dhanurasana",
+  "Bharadvaja's Twist Pose (or Bharadvajasana I)",
+  "Boat Pose (or Paripurna Navasana)",
+  "Bound Angle Pose (or Baddha Konasana)",
+  "Bow Pose (or Dhanurasana)",
+  "Bridge Pose (or Setu Bandha Sarvangasana)",
+  "Camel Pose (or Ustrasana)",
+  "Cat Cow Pose (or Marjaryasana)",
+  "Chair Pose (or Utkatasana)",
+  "Child Pose (or Balasana)",
+  "Cobra Pose (or Bhujangasana)",
+  "Cockerel Pose",
+  "Corpse Pose (or Savasana)",
+  "Cow Face Pose (or Gomukhasana)",
+  "Crane (Crow) Pose (or Bakasana)",
+  "Dolphin Plank Pose (or Makara Adho Mukha Svanasana)",
+  "Dolphin Pose (or Ardha Pincha Mayurasana)",
+  "Downward-Facing Dog Pose (or Adho Mukha Svanasana)",
+  "Eagle Pose (or Garudasana)",
+  "Eight-Angle Pose (or Astavakrasana)",
+  "Extended Puppy Pose (or Uttana Shishosana)",
+  "Extended Revolved Side Angle Pose (or Utthita Parsvakonasana)",
+  "Extended Revolved Triangle Pose (or Utthita Trikonasana)",
+  "Feathered Peacock Pose (or Pincha Mayurasana)",
+  "Firefly Pose (or Tittibhasana)",
+  "Fish Pose (or Matsyasana)",
+  "Four-Limbed Staff Pose (or Chaturanga Dandasana)",
+  "Frog Pose (or Bhekasana)",
+  "Garland Pose (or Malasana)",
+  "Gate Pose (or Parighasana)",
+  "Half Lord Of The Fishes Pose (or Ardha Matsyendrasana)",
+  "Half Moon Pose (or Ardha Chandrasana)",
+  "Handstand Pose (or Adho Mukha Vrksasana)",
+  "Happy Baby Pose (or Ananda Balasana)",
+  "Head-To-Knee Forward Bend Pose (or Janu Sirsasana)",
+  "Heron Pose (or Krounchasana)",
+  "Intense Side Stretch Pose (or Parsvottanasana)",
+  "Legs-Up-The-Wall Pose (or Viparita Karani)",
+  "Locust Pose (or Salabhasana)",
+  "Lord Of The Dance Pose (or Natarajasana)",
+  "Low Lunge Pose (or Anjaneyasana)",
+  "Noose Pose (or Pasasana)",
+  "Peacock Pose (or Mayurasana)",
+  "Pigeon Pose (or Kapotasana)",
+  "Plank Pose (or Kumbhakasana)",
+  "Plow Pose (or Halasana)",
+  "Pose Dedicated To The Sage Koundinya (or Eka Pada Koundinyanasana I And II)",
+  "Rajakapotasana",
+  "Reclining Hand-To-Big-Toe Pose (or Supta Padangusthasana)",
+  "Revolved Head-To-Knee Pose (or Parivrtta Janu Sirsasana)",
+  "Scale Pose (or Tolasana)",
+  "Scorpion Pose (or Vrischikasana)",
+  "Seated Forward Bend Pose (or Paschimottanasana)",
+  "Shoulder-Pressing Pose (or Bhujapidasana)",
+  "Side-Reclining Leg Lift Pose (or Anantasana)",
+  "Side Crane (Crow) Pose (or Parsva Bakasana)",
+  "Side Plank Pose (or Vasisthasana)",
+  "Sitting Pose 1 (Normal)",
+  "Split Pose",
+  "Staff Pose (or Dandasana)",
+  "Standing Forward Bend Pose (or Uttanasana)",
+  "Standing Split Pose (or Urdhva Prasarita Eka Padasana)",
+  "Standing Big Toe Hold Pose (or Utthita Padangusthasana)",
+  "Supported Headstand Pose (or Salamba Sirsansana)",
+  "Supported Shoulderstand Pose (or Salamba Sarvangasana)",
+  "Supta Baddha Konasana",
+  "Supta Virasana Vajrasana",
+  "Tortoise Pose",
+  "Tree Pose (or Vrksasana)",
+  "Upward Bow (Wheel) Pose (or Urdhva Dhanurasana)",
+  "Upward Facing Two-Foot Staff Pose (or Dwi Pada Viparita Dandasana)",
+  "Upward Plank Pose (or Purvottanasana)",
+  "Virasana Or Vajrasana",
+  "Warrior III Pose (or Virabhadrasana III)",
+  "Warrior II Pose (or Virabhadrasana II)",
+  "Warrior I Pose (or Virabhadrasana I)",
+  "Wide-Angle Seated Forward Bend Pose (or Upavistha Konasana)",
+  "Wide-Legged Forward Bend Pose (or Prasarita Padottanasana)",
+  "Wild Thing Pose (or Camatkarasana)",
+  "Wind Relieving Pose (or Pawanmuktasana)",
+  "Yogic Sleep Pose",
+  "Viparita Virabhadrasana (or Reverse Warrior Pose)"
+];
+
+const POSE_LIMITATION_INSTRUCTION = `
+CRITICAL CONSTRAINT: You MUST ONLY recommend, reference, guide, or design routines for the user using yoga poses that are explicitly listed below. Never invent, suggest, or mention any yoga poses outside of this list:
+${ALLOWED_YOGA_POSES.map(p => `- ${p}`).join('\n')}
+`;
 
 async function callGeminiFallback(systemInstruction, contents) {
   const keyToUse = currentApiKey || altApiKey;
@@ -53,15 +144,12 @@ async function callGeminiFallback(systemInstruction, contents) {
  * Low-level call to Groq Llama 3 API (via Vercel Serverless Route or direct fallback).
  */
 export async function callAI(systemInstruction, contents) {
-  // Format messages for Groq
   const messages = contents.map(c => ({
     role: c.role === 'model' || c.role === 'assistant' ? 'assistant' : 'user',
     content: c.parts ? c.parts.map(p => p.text).join('\n') : c.content
   }));
 
   try {
-    // 1. Try hitting the server-side API Route (Vercel)
-    // This is more secure as it hides the API key
     const res = await fetch('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -76,18 +164,14 @@ export async function callAI(systemInstruction, contents) {
       return { success: true, text: data.text };
     }
     
-    // Check if it's a 429 rate limit or 500 missing key from server
     if (res.status === 429 || res.status === 500) {
       console.warn(`/api/chat failed with ${res.status}, falling back to Gemini...`);
       return await callGeminiFallback(systemInstruction, contents);
     }
-    
-    console.warn("/api/chat failed, falling back to direct Groq call...", await res.text());
   } catch (err) {
     console.warn("/api/chat not reachable, falling back to direct Groq call...");
   }
 
-  // 2. Direct Fallback to Groq API (Local Dev)
   if (GROQ_API_KEY) {
     try {
       const groqMessages = [];
@@ -123,21 +207,14 @@ export async function callAI(systemInstruction, contents) {
     }
   }
 
-  // 3. Final Fallback if no Groq keys
   return await callGeminiFallback(systemInstruction, contents);
 }
-
-// ─────────────────────────────────────────────────────────────
-// Public API
-// ─────────────────────────────────────────────────────────────
-
-
 
 /**
  * Generate a warm, personalized morning greeting (2-3 sentences).
  */
 export async function generateMorningGreeting(userContext) {
-  const system = `You are a warm, caring AI Wellness Mentor. Generate a brief, personalized morning greeting. Keep it to 2-3 sentences maximum. Be encouraging and reference specific details from the user's data. Do not use generic greetings.`;
+  const system = `You are a warm, caring AI Wellness Mentor. Generate a brief, personalized morning greeting. Keep it to 2-3 sentences maximum. Be encouraging and reference specific details from the user's data. Do not use generic greetings.\n${POSE_LIMITATION_INSTRUCTION}`;
 
   const prompt = `Here is the user's current wellness context:
 
@@ -173,7 +250,7 @@ Provide a brief insight (2-4 sentences) about patterns you notice. For example, 
  * Generate a detailed yoga session with specific poses, timings, and instructions.
  */
 export async function generateYogaSession(userContext, duration = 20, focusArea = 'full body') {
-  const system = `You are an expert yoga instructor and AI Wellness Mentor. Design safe, effective yoga sessions tailored to the user's experience level, physical considerations, and goals. Always prioritize safety and proper alignment.`;
+  const system = `You are an expert yoga instructor and AI Wellness Mentor. Design safe, effective yoga sessions tailored to the user's experience level, physical considerations, and goals. Always prioritize safety and proper alignment.\n${POSE_LIMITATION_INSTRUCTION}`;
 
   const prompt = `User context:
 ${userContext}
@@ -211,9 +288,7 @@ Tailor difficulty to their experience level. If they have health conditions, pro
  */
 export async function chatWithMentor(userContext, conversationHistory = [], userMessage) {
   const system = `You are a trusted AI wellness mentor. You know the user deeply through the context provided below. You are warm, encouraging, and practical. You remember everything about them. You are NOT a chatbot — you are a mentor who evolves with them. Never give generic advice. Always reference their specific goals, challenges, and progress.
-
-Here is everything you know about the user:
-${userContext}
+${POSE_LIMITATION_INSTRUCTION}
 
 Guidelines:
 - Be conversational and warm, like a caring friend who also happens to be a wellness expert
@@ -224,12 +299,9 @@ Guidelines:
 - If they ask about yoga or exercises, provide specific, actionable guidance
 - If they share a struggle, validate their feelings first`;
 
-  // Build conversation contents for Gemini multi-turn format
   const contents = [];
 
-  // Add conversation history
   if (conversationHistory.length > 0) {
-    // Keep last 6 messages to stay within token context limits and reduce costs
     const recent = conversationHistory.slice(-6);
     for (const msg of recent) {
       contents.push({
@@ -239,7 +311,6 @@ Guidelines:
     }
   }
 
-  // Add the new user message
   contents.push({
     role: 'user',
     parts: [{ text: userMessage }],
