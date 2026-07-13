@@ -228,30 +228,27 @@ export default function MentorChat({ currentUser, onNavigate }) {
               className={`chat-bubble ${msg.role}`} 
               style={{ 
                 opacity: msg.isError ? 0.7 : 1,
-                position: 'relative',
-                paddingRight: imgUrl ? '64px' : '16px',
-                minHeight: imgUrl ? '60px' : 'auto'
               }}
             >
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                {msg.text}
-              </div>
-              {imgUrl && (
-                <div style={{
-                  position: 'absolute',
-                  top: '8px',
-                  right: '8px',
-                  width: '44px',
-                  height: '44px',
-                  borderRadius: '8px',
-                  overflow: 'hidden',
-                  border: '1px solid var(--accent-gold-dim)',
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
-                  background: '#111'
-                }} title={mentionedPose}>
-                  <img src={imgUrl} alt={mentionedPose} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              <div style={{ display: 'flex', flexDirection: msg.role === 'user' ? 'row-reverse' : 'row', gap: '16px', alignItems: 'center' }}>
+                <div style={{ flex: 1, wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}>
+                  {msg.text}
                 </div>
-              )}
+                {imgUrl && (
+                  <div style={{
+                    flexShrink: 0,
+                    width: '64px',
+                    height: '64px',
+                    borderRadius: '8px',
+                    overflow: 'hidden',
+                    border: '1px solid var(--accent-gold-dim)',
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+                    background: '#111'
+                  }} title={mentionedPose}>
+                    <img src={imgUrl} alt={mentionedPose} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  </div>
+                )}
+              </div>
             </div>
           );
         })}
