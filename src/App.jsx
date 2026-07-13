@@ -70,12 +70,14 @@ export default function App() {
       // Listen for auth changes
       const authListener = supabase.auth.onAuthStateChange(async (_event, session) => {
         if (session?.user) {
-          setLoading(true);
-          setCurrentUser({
+          const userObj = {
             id: session.user.id,
             email: session.user.email,
             name: session.user.user_metadata?.name || 'User',
-          });
+          };
+          localStorage.setItem("yoga_current_user", JSON.stringify(userObj));
+          setLoading(true);
+          setCurrentUser(userObj);
           setLoading(false);
           // Run sync in background
           WellnessMemory.syncFromCloud().then(() => {
@@ -110,6 +112,7 @@ export default function App() {
 
   const handleLoginSuccess = async (user) => {
     setLoading(true);
+    localStorage.setItem("yoga_current_user", JSON.stringify(user));
     await WellnessMemory.syncFromCloud();
     setCurrentUser(user);
     setLoading(false);
