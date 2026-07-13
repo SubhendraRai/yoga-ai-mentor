@@ -39,7 +39,8 @@ export default function WellnessScore({ score, breakdown }) {
     switch (key) {
       case 'physical': return 'Physical Activity';
       case 'mental': return 'Mental Balance';
-      case 'consistency': return 'Consistency';
+      case 'sleep': return 'Sleep Quality';
+      case 'consistency': return 'Consistency (Streak)';
       default: return key;
     }
   };

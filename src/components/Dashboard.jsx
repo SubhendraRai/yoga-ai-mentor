@@ -122,7 +122,7 @@ export default function Dashboard({ onNavigate, onStartSession, onLearnMore }) {
 
       {/* Stats Row */}
       <div className="stats-row">
-        <WellnessScore score={score.total} breakdown={{ physical: score.activityScore, mental: score.moodScore, consistency: score.sleepScore }} />
+        <WellnessScore score={score.total} breakdown={{ physical: score.activityScore, mental: score.moodScore, sleep: score.sleepScore, consistency: score.streakScore }} />
         <MoodTracker compact={true} />
         
         <div className="card-sm" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center' }}>
