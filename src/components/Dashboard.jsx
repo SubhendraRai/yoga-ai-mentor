@@ -51,9 +51,9 @@ export default function Dashboard({ onNavigate, onStartSession, onLearnMore }) {
 
   const loadDashboardData = async () => {
     const context = WellnessMemory.getContextForAI();
+    const todayStr = new Date().toISOString().split('T')[0];
     
     // Greeting (Daily Cache)
-    const todayStr = new Date().toISOString().split('T')[0];
     const cachedGreeting = WellnessMemory.getItem('greeting');
     const greetingDate = WellnessMemory.getItem('greeting_date');
     
@@ -71,18 +71,30 @@ export default function Dashboard({ onNavigate, onStartSession, onLearnMore }) {
       });
     }
 
-    // Plan
+    // Plan — regenerate daily OR when profile changes
+    const profileFingerprint = JSON.stringify({
+      goals: profile?.goals,
+      fitnessLevel: profile?.fitnessLevel,
+      timePerDay: profile?.timePerDay,
+      healthConditions: profile?.healthConditions,
+    });
     const savedPlan = WellnessMemory.getDailyPlan();
-    if (savedPlan) {
+    const planDate = WellnessMemory.getItem('plan_date');
+    const savedFingerprint = WellnessMemory.getItem('plan_fingerprint');
+
+    const needsNewPlan = !savedPlan
+      || planDate !== todayStr
+      || savedFingerprint !== profileFingerprint;
+
+    if (!needsNewPlan) {
       setPlan(savedPlan);
     } else {
-      handleGeneratePlan(profile);
+      handleGeneratePlan(profile, todayStr, profileFingerprint);
     }
   };
 
-  const handleGeneratePlan = (currentProfile = profile) => {
+  const handleGeneratePlan = (currentProfile = profile, todayStr = new Date().toISOString().split('T')[0], fingerprint = '') => {
     setLoadingPlan(true);
-    // Use deterministic rules engine instead of AI!
     const sleepHist = WellnessMemory.getSleepHistory(7);
     const moodHist = WellnessMemory.getMoodHistory(7);
     
@@ -91,12 +103,19 @@ export default function Dashboard({ onNavigate, onStartSession, onLearnMore }) {
     
     setPlan(planString);
     WellnessMemory.saveDailyPlan(planString);
+    WellnessMemory.setItem('plan_date', todayStr);
+    WellnessMemory.setItem('plan_fingerprint', fingerprint || JSON.stringify({
+      goals: currentProfile?.goals,
+      fitnessLevel: currentProfile?.fitnessLevel,
+      timePerDay: currentProfile?.timePerDay,
+      healthConditions: currentProfile?.healthConditions,
+    }));
     
-    // Simulate slight loading delay for UX
     setTimeout(() => {
       setLoadingPlan(false);
     }, 500);
   };
+
 
   const handleLogSleep = () => {
     WellnessMemory.logSleep(sleepHours, sleepQuality);
