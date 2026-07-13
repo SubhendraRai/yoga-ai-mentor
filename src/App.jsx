@@ -274,7 +274,18 @@ export default function App() {
           )}
           
           {currentPage === 'pose' && (
-            <MediaPipePose session={activeSession} initialPoseIndex={0} onExit={() => setCurrentPage('dashboard')} />
+            localStorage.getItem('pose_detection_unlocked') === 'true' 
+              ? <MediaPipePose session={activeSession} initialPoseIndex={0} onExit={() => setCurrentPage('dashboard')} />
+              : (
+                <div className="card" style={{ maxWidth: '600px', margin: '40px auto', textAlign: 'center' }}>
+                  <Lock size={48} style={{ color: 'var(--accent-gold)', marginBottom: '16px', display: 'inline-block' }} />
+                  <h2 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '32px', color: 'var(--text-primary)', marginBottom: '16px' }}>Premium Feature Locked</h2>
+                  <p style={{ color: 'var(--text-secondary)', marginBottom: '32px', lineHeight: '1.6' }}>
+                    Live AI Pose Check is a premium feature that uses advanced computer vision to provide real-time alignment feedback.
+                  </p>
+                  <button className="submit-btn" onClick={() => setCurrentPage('settings')}>View Upgrade Options</button>
+                </div>
+              )
           )}
           
           {currentPage === 'chat' && <MentorChat currentUser={currentUser} onNavigate={(page) => setCurrentPage(page)} />}
