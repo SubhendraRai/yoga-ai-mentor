@@ -108,7 +108,21 @@ export default function Onboarding({ user, onComplete }) {
             <div className="row">
               <div className="field">
                 <label>Age</label>
-                <input type="number" value={formData.age} onChange={e => updateForm('age', e.target.value)} placeholder="e.g. 28" />
+                <input 
+                  type="number" 
+                  min="1" 
+                  max="150" 
+                  value={formData.age} 
+                  onChange={e => {
+                    const val = parseInt(e.target.value, 10);
+                    if (!e.target.value || (val > 0 && val <= 150)) {
+                      updateForm('age', e.target.value);
+                    } else if (val > 150) {
+                      updateForm('age', '150');
+                    }
+                  }} 
+                  placeholder="e.g. 28" 
+                />
               </div>
               <div className="field">
                 <label>Occupation</label>
