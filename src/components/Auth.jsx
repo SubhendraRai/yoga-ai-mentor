@@ -424,7 +424,7 @@ export default function Auth({ onLoginSuccess }) {
             <button
               type="button"
               className="btn-outline"
-              disabled={loading}
+              disabled={loading || !agreed}
               onClick={() => handleSocialLogin('google')}
               style={{ justifyContent: 'center', padding: '10px 14px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}
             >
@@ -439,7 +439,7 @@ export default function Auth({ onLoginSuccess }) {
             <button
               type="button"
               className="btn-outline"
-              disabled={loading}
+              disabled={loading || !agreed}
               onClick={() => handleSocialLogin('apple')}
               style={{ justifyContent: 'center', padding: '10px 14px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}
             >
@@ -453,6 +453,7 @@ export default function Auth({ onLoginSuccess }) {
           <button 
             type="button" 
             className="btn-outline" 
+            disabled={loading || !agreed}
             style={{ width: '100%', marginTop: '16px', justifyContent: 'center' }}
             onClick={() => {
               // Clear previous guest profile & onboarding to prevent cached data from bleeding
