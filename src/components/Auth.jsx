@@ -395,7 +395,7 @@ export default function Auth({ onLoginSuccess }) {
             </label>
           </div>
 
-          <button type="submit" className="submit-btn" disabled={loading}>
+          <button type="submit" className="submit-btn" disabled={loading || !agreed}>
             {loading ? (
               <>
                 <div className="spinner" style={{ width: 16, height: 16, borderTopColor: "#0d0d0f" }} />
