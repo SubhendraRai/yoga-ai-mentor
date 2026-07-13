@@ -100,10 +100,8 @@ const ALLOWED_YOGA_POSES = [
   "Viparita Virabhadrasana (or Reverse Warrior Pose)"
 ];
 
-const POSE_LIMITATION_INSTRUCTION = `
-CRITICAL CONSTRAINT: You MUST ONLY recommend, reference, guide, or design routines for the user using yoga poses that are explicitly listed below. Never invent, suggest, or mention any yoga poses outside of this list:
-${ALLOWED_YOGA_POSES.map(p => `- ${p}`).join('\n')}
-`;
+// Compact pose constraint — avoids hitting character limits in UI inputs
+const POSE_LIMITATION_INSTRUCTION = `Only recommend poses from the Yoga-82 dataset (82 canonical postures). Never invent poses outside that list.`;
 
 async function callGeminiFallback(systemInstruction, contents) {
   const keyToUse = currentApiKey || altApiKey;
@@ -341,6 +339,19 @@ ${userContext}`;
   });
 
   return callAI(system, contents);
+}
+
+/**
+ * Ultra-compact CV Pose Engine — used for real-time alignment feedback.
+ * System prompt is intentionally minimal to avoid character-limit truncation.
+ */
+export async function chatWithPoseEngine(userMessage) {
+  const system = `You are the YogTatva AI Pose Engine. Analyze webcam coordinates against the Yoga-82 atlas. Keep responses brief. Prioritize spinal safety for back pain users. If alignment needs correction, append this JSON at the end:
+\`\`\`json
+{"pose":"Pose Name","status":"ACTION_REQUIRED","corrections":[{"joint":"Spine/Hips/Knees/Shoulders","action":"LOWER/RAISE/STRAIGHTEN","msg":"Short correction here."}]}
+\`\`\``;
+
+  return callAI(system, [{ role: 'user', parts: [{ text: userMessage }] }]);
 }
 
 export async function generateOnboardingProfile(onboardingData) {

@@ -30,10 +30,12 @@ function parseAndApplyRoutineUpdate(rawResponse) {
 
   if (match && match[1]) {
     try {
+      // ── Attempt clean JSON parse ──────────────────────────────────────
       const toolCall = JSON.parse(match[1].trim());
+
+      // Handler 1: UPDATE_ROUTINE (full wellness plan update)
       if (toolCall.action === 'UPDATE_ROUTINE' && toolCall.payload) {
         const { message, poses } = toolCall.payload;
-        // Map to the format WellnessMemory / WellnessPlan expect
         const normalizedPoses = (poses || []).map(p => ({
           englishName: p.name,
           sanskritName: p.sanskritName || '',
@@ -44,19 +46,41 @@ function parseAndApplyRoutineUpdate(rawResponse) {
         }));
         const planPayload = JSON.stringify({ message: message || 'Your personalised AI routine.', poses: normalizedPoses });
         WellnessMemory.saveDailyPlan(planPayload);
-        // Notify Dashboard to reload
         window.dispatchEvent(new Event('wellness_synced'));
         routineApplied = true;
       }
+
+      // Handler 2: Compact pose-engine correction payload (status-based)
+      if (toolCall.status === 'ACTION_REQUIRED' && toolCall.corrections) {
+        // Store corrections in session for UI widgets — read by MediaPipePose if present
+        window.__poseFeedback = toolCall;
+        window.dispatchEvent(new CustomEvent('pose_feedback', { detail: toolCall }));
+      }
+
     } catch (e) {
-      console.error('Error parsing AI tool call:', e);
+      // ── Safe fallback: JSON was truncated / malformed ─────────────────
+      console.warn('JSON parse failed (possibly truncated), using keyword fallback.', e.message);
+
+      const raw = match[1] || rawResponse;
+      if (raw.includes('ACTION_REQUIRED') || raw.includes('RAISE') || raw.includes('LOWER') || raw.includes('STRAIGHTEN')) {
+        // Build a minimal correction object from keyword detection
+        const fallbackCorrections = [];
+        if (raw.includes('RAISE'))      fallbackCorrections.push({ joint: 'Hips',      action: 'RAISE',      msg: 'Lift your hips higher.' });
+        if (raw.includes('LOWER'))      fallbackCorrections.push({ joint: 'Shoulders', action: 'LOWER',      msg: 'Relax your shoulders down.' });
+        if (raw.includes('STRAIGHTEN')) fallbackCorrections.push({ joint: 'Spine',     action: 'STRAIGHTEN', msg: 'Lengthen your spine.' });
+
+        const fallback = { pose: 'Unknown', status: 'ACTION_REQUIRED', corrections: fallbackCorrections };
+        window.__poseFeedback = fallback;
+        window.dispatchEvent(new CustomEvent('pose_feedback', { detail: fallback }));
+      }
     }
   }
 
-  // Return clean text (strip the JSON block)
+  // Return clean text (strip the JSON block from the visible message)
   const cleanText = rawResponse.replace(jsonRegex, '').trim();
   return { cleanText, routineApplied };
 }
+
 
 export default function MentorChat({ currentUser, onNavigate }) {
   const [messages, setMessages] = useState([]);
