@@ -353,7 +353,11 @@ export const WellnessMemory = {
   // ------------------------------------------------------------------------
   getContextForAI: () => {
     const profile = WellnessMemory.getProfile();
-    if (!profile) return "User has not completed onboarding.";
+    let localUser = null;
+    try {
+      localUser = JSON.parse(localStorage.getItem("yoga_current_user"));
+    } catch (e) {}
+    const userName = profile?.name || localUser?.name || 'Friend';
 
     const latestMood = WellnessMemory.getLatestMood();
     const streak = WellnessMemory.getStreak();
@@ -361,13 +365,17 @@ export const WellnessMemory = {
     const observations = WellnessMemory.getObservations().slice(-5).map(o => o.text);
 
     let context = `USER PROFILE:\n`;
-    context += `Name: ${profile.name}\n`;
-    context += `Age: ${profile.age}\n`;
-    context += `Occupation: ${profile.occupation}\n`;
-    context += `Goals: ${profile.goals?.join(', ')}\n`;
-    context += `Fitness Level: ${profile.fitnessLevel}\n`;
-    if (profile.healthConditions) context += `Health Conditions: ${profile.healthConditions}\n`;
-    context += `Available Time: ${profile.timePerDay} minutes per day, ${profile.daysPerWeek} days a week (prefers ${profile.preferredTime})\n`;
+    context += `Name: ${userName}\n`;
+    if (profile) {
+      context += `Age: ${profile.age}\n`;
+      context += `Occupation: ${profile.occupation}\n`;
+      context += `Goals: ${profile.goals?.join(', ')}\n`;
+      context += `Fitness Level: ${profile.fitnessLevel}\n`;
+      if (profile.healthConditions) context += `Health Conditions: ${profile.healthConditions}\n`;
+      context += `Available Time: ${profile.timePerDay} minutes per day, ${profile.daysPerWeek} days a week (prefers ${profile.preferredTime})\n`;
+    } else {
+      context += `Note: User has not completed detailed onboarding survey yet.\n`;
+    }
     
     context += `\nCURRENT STATUS:\n`;
     context += `Wellness Score: ${score.total}/100\n`;
