@@ -89,18 +89,6 @@ export default function Settings({ user, onLogout }) {
         </button>
       </div>
 
-      {/* SYSTEM SECTION */}
-      <div className="card settings-section">
-        <h3>System & AI</h3>
-        <div className="field">
-          <label>AI Provider</label>
-          <div style={{ padding: '12px 16px', background: 'var(--bg-primary)', border: '0.5px solid var(--border-color)', borderRadius: '8px', fontSize: '14px', color: 'var(--text-secondary)' }}>
-            Google Gemini 2.0 Flash
-            <div style={{ fontSize: '12px', marginTop: '4px', color: 'var(--success-color)' }}>Active (API Key loaded from environment)</div>
-          </div>
-        </div>
-      </div>
-
       {/* DATA SECTION */}
       <div className="card settings-section">
         <h3>Data Management</h3>
