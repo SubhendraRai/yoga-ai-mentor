@@ -590,8 +590,14 @@ export const WellnessMemory = {
         const cloudMemories = memoriesRes.value.data
           .map(entry => entry.memory)
           .filter(Boolean);
-        const localMemories = JSON.parse(WellnessMemory.getItem('memories') || '[]');
-        WellnessMemory.setItem('memories', [...new Set([...localMemories, ...cloudMemories])].slice(-100));
+        let localMemories = [];
+        try {
+          localMemories = JSON.parse(WellnessMemory.getItem('memories') || '[]');
+        } catch (e) {
+          console.warn('Recovered from corrupted memories JSON');
+          WellnessMemory.removeItem('memories');
+        }
+        WellnessMemory.setItem('memories', JSON.stringify([...new Set([...localMemories, ...cloudMemories])].slice(-100)));
       }
       
       WellnessMemory.setItem('last_sync', Date.now().toString());
