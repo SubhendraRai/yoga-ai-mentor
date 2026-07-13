@@ -1,0 +1,90 @@
+YOGTATVA PRIVACY POLICY
+Last Updated: July 13, 2026
+
+1. INTRODUCTION
+YogTatva ("we", "us", "our") is committed to protecting the privacy of our users ("User", "you", "your"). This Privacy Policy describes how we collect, use, disclose, process, and safeguard your personal data when you visit and interact with the YogTatva website located at https://yogtatva.vercel.app and the YogTatva mobile application (collectively, the "Platform"), and use our services, including our AI Yoga Mentor, camera-based pose detection, AI chat assistant, and health logging features (the "Services").
+By accessing or using the Platform, you consent to the collection, transfer, storage, disclosure, and use of your information as described in this Privacy Policy. If you do not agree with any terms of this Privacy Policy, please do not use the Platform or submit any personal information to us.
+
+2. JURISDICTION AND COMPLIANCE FRAMEWORK
+YogTatva is headquartered and operated from India. We design our privacy practices to comply with the Information Technology Act, 2000, and the rules framed thereunder, as well as the Digital Personal Data Protection Act, 2023 (DPDP Act) of India. Additionally, for users accessing our Platform from the European Economic Area (EEA), the United Kingdom, or California (United States), we seek to align our practices with the General Data Protection Regulation (GDPR), the UK GDPR, and the California Consumer Privacy Act (CCPA), respectively.
+
+3. DATA WE COLLECT
+We collect data through various methods, depending on your session type (Guest Mode vs. Registered Account) and how you interact with the Platform.
+
+3.1. Personal Information Provided Directly by You
+- Account Information: When you create a registered account, we collect your email address, password, and registration name.
+- Authentication Data: If you choose to sign in using Google Login, we receive your authentication tokens, email address, display name, and profile picture URL from the third-party provider (Google API Console / Supabase Auth).
+- Onboarding and Profile Preferences: If you complete the wellness onboarding flow, we collect information including your name, age, occupation, fitness goals (e.g. flexibility, strength), wellness schedules, wake/bedtimes, preferred yoga session durations, baseline stress levels, and self-reported health or orthopedic conditions (e.g. back pain, knee injuries).
+- Wellness Logs and Tracker Data: When you log your mood, input sleep duration and quality, complete daily activity routines, or record pose statistics, we save this information.
+
+3.2. Camera and Device-Side Pose Coordinates
+- live Camera Feed: To run the AI pose alignment check and real-time posture correction, the Platform requires access to your device’s front-facing camera.
+- Local Processing: The video stream is processed in real time entirely locally in your web browser memory using Google MediaPipe. We do NOT stream your video feed, image files, or video metadata to our servers.
+- Coordinates Logging: Only the numeric skeletal coordinates and calculated pose accuracy percentages (e.g. "92% accuracy during downward dog") are stored in your local storage or database, not the image data itself.
+
+3.3. AI Chat History and Observations
+- Chat Queries: When you write queries to the AI Wellness Mentor, the chat inputs and outputs are saved to allow conversation continuity.
+- Profile Summaries: The AI Llama Models run via Groq API to parse your chats and generate observations. These text-based observations are saved under your profile.
+
+3.4. Automatically Collected Information
+- Device and browser Details: We collect technical identifiers, screen resolution, browser type, operating system version, browser language, and active IP address.
+- Usage Data: We collect information about how you navigate the Platform, which pages you view, which button clicks you make, and how long you spend on the pose detector screen. This data is collected using PostHog analytics scripts.
+
+4. COOKIES AND LOCAL STORAGE
+4.1. Local Storage: We make extensive use of browser Local Storage (localStorage) to support offline guest features and enable high-speed data loading. The data saved in localStorage includes:
+- User authentication tokens under `yoga_current_user`;
+- Scoped wellness logs including `mood`, `sleep`, `activities`, `scores`, `observations`, and `daily_plan` (prefixed with your unique user ID);
+- Sidebar navigation collapse states.
+4.2. Cookies: We use cookies to handle PostHog analytics sessions and maintain secure Supabase database sessions. You can configure your browser to block cookies, but doing so may limit your access to authenticated features.
+
+5. HOW WE USE YOUR INFORMATION
+We process your personal data for the following legitimate business purposes:
+- To provide, operate, and maintain the Platform and its interactive wellness services;
+- To compile and update your Wellness Score, activity streaks, and daily routines;
+- To personalize the morning AI greetings and tailor your daily yoga recommendations;
+- To process and display your chat logs with the AI Mentor;
+- To analyze Platform performance, detect usability bugs, and optimize loading speeds;
+- To enforce our Terms and Conditions and prevent fraudulent activities.
+
+6. LEGAL BASIS FOR PROCESSING (FOR GDPR/DPDP USERS)
+Under applicable regulations, we only process your personal data under the following legal bases:
+- Consent: When you explicitly opt-in to camera permissions, complete the onboarding profile, or sign up for an account.
+- Contract Performance: To deliver the wellness planning and chat mentoring services requested by you.
+- Legitimate Interests: To monitor Platform usability, optimize MediaPipe client-side performance, and analyze usage trends.
+- Legal Compliance: To adhere to statutory audit or information security requirements under Indian law.
+
+7. DATA SECURITY AND ENCRYPTION
+7.1. We implement technical and organizational security measures to protect your personal data from unauthorized access, loss, alteration, or disclosure.
+7.2. All data transmitted between the client browser and our backend (Supabase API / Groq API) is encrypted in transit using Transport Layer Security (TLS 1.3 / HTTPS).
+7.3. Your database records in Supabase are isolated using Row Level Security (RLS) policies, ensuring only your authenticated user ID can read or edit your data.
+7.4. However, no electronic transmission or storage method is 100% secure. While we strive to protect your data, we cannot guarantee absolute security.
+
+8. THIRD-PARTY PROCESSORS
+To deliver our Services, we share necessary data fragments with the following third-party sub-processors:
+- Supabase Inc.: Database hosting, authentication systems, and cloud sync storage.
+- Groq Inc.: AI inference execution (Llama models) for chat processing and daily greeting compilation.
+- Google Cloud Console: OAuth authentication infrastructure.
+- PostHog Inc.: Privacy-compliant product analytics and session tracking.
+- Vercel Inc.: Static site hosting and cloud deployment pipeline.
+
+9. DATA RETENTION
+- Guest Mode Data: All data entered in Guest Mode resides locally in your browser storage. If you clear your browser cookies/cache, this data is permanently lost.
+- Registered User Data: Profile details, wellness logs, and chat records are retained in the Supabase database for as long as your account remains active.
+- Deletion: If you request account deletion, we delete your records from the active Supabase tables within thirty (30) business days.
+
+10. YOUR RIGHTS AND RIGHTS CONTROL
+Depending on your geographic location, you have the following rights regarding your personal data:
+- Right to Access: You can request a copy of the personal information we hold about you. You can export your data in JSON format under Settings at any time.
+- Right to Correction: You can update your profile name, age, goals, and stress settings under the Settings panel.
+- Right to Deletion: You can request that we delete all your wellness data. Registered users can initiate this under settings or by contacting privacy@yogtatva.com.
+- Right to Data Portability: You can download your logs directly.
+- Right to Consent Withdrawal: You can disable camera permissions in your browser settings at any time.
+
+11. CHILDREN'S PRIVACY
+YogTatva is not designed for or targeted at children under the age of thirteen (13). We do not knowingly collect personal data from children under 13. If you learn that a child has provided us with personal data, please contact us immediately, and we will take steps to purge the information.
+
+12. CONTACT INFORMATION
+For privacy-related inquiries, data deletion requests, or consent withdrawal, please contact our Data Protection Officer:
+YogTatva Privacy Team
+Email: privacy@yogtatva.com
+Address: New Delhi, India

@@ -1,0 +1,39 @@
+YOGTATVA COOKIE AND LOCAL STORAGE POLICY
+Last Updated: July 13, 2026
+
+1. WHAT ARE COOKIES AND BROWSER STORAGE TECHNOLOGIES?
+1.1. Cookies are small text files that websites save on your computer or mobile device when you visit them. They allow websites to remember your actions, login sessions, preferences, and session statistics.
+1.2. Local Storage (localStorage) is a standard technology that allows websites to store key-value data directly inside your web browser. Local Storage does not expire automatically and provides high-speed loading times, which YogTatva uses extensively to support guest profiles, offline logging, and dashboard persistence.
+
+2. TYPES OF STORAGE WE USE
+YogTatva uses both first-party and third-party cookies, as well as local storage keys. They are classified as follows:
+
+2.1. Essential and Session Cookies (First-Party)
+- Purpose: These are required to load and secure your session.
+- Authentication: We use Supabase session cookies to verify your login credentials when communicating with the database. Blocking these cookies will prevent you from accessing your dashboard or synchronizing data.
+
+2.2. Preference Local Storage (First-Party)
+- Purpose: We use localStorage keys to store your UI preferences.
+- Scoped Data: Scoped profile statistics, greeting logs, daily plan structures, and chat history lists are stored in localStorage to enable seamless transitions between pages without lag.
+- Sidebar State: We save the sidebar collapse state (`yoga_sidebar_collapsed`) locally.
+
+2.3. Analytics Cookies and Storage (Third-Party)
+- Purpose: We integrate PostHog analytics to capture user interaction logs.
+- PostHog Cookies: PostHog sets cookies (e.g. `ph_...`) to group your clicks, screen views, and pose check accuracy scores into a single session profile. This allows us to detect bottlenecks on the camera tracking screen.
+
+3. COOKIE MANAGEMENT AND CONSENT
+3.1. Browser Controls: You can manage, disable, or delete cookies through your browser settings (usually located in "Privacy and Security" or "Preferences"). If you disable cookies, please note that certain parts of the Platform may become inaccessible.
+3.2. Clearing Local Storage: You can delete all local storage data at any time by selecting "Clear All Wellness Data" under the Settings panel or by clearing your browser's history and site data.
+
+4. RETENTION
+4.1. Session cookies are deleted automatically when you close your browser.
+4.2. Persistent cookies and local storage keys remain stored on your device until they are manually cleared or deleted by you.
+
+5. POLICY UPDATES
+We may update this Cookie Policy from time to time. Any changes will be posted on this page with an updated "Last Updated" date.
+
+6. CONTACT INFORMATION
+For questions regarding cookies or local storage settings, please contact:
+YogTatva Security Team
+Email: security@yogtatva.com
+Address: New Delhi, India

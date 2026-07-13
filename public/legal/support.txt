@@ -1,0 +1,33 @@
+YOGTATVA CONTACT AND SUPPORT POLICY
+Last Updated: July 13, 2026
+
+1. CUSTOMER SUPPORT CHANNELS
+1.1. At YogTatva, we are committed to providing reliable support for technical issues, billing questions, data inquiries, and user feedback.
+1.2. Support is primarily delivered via email. We do not currently offer live telephone support or real-time web chat support.
+
+2. SPECIFIC CONTACT CHANNELS
+Please direct your inquiries to the appropriate department to expedite processing:
+- Technical Support & Bug Reports: support@yogtatva.com (For help with camera pose detection, MediaPipe errors, or Supabase cloud sync issues).
+- Billing Support: billing@yogtatva.com (For subscription queries, invoice errors, or cancellation disputes).
+- Privacy & Data Requests: privacy@yogtatva.com (For data export files, account deletion requests, or consent withdrawals under GDPR / DPDP Act).
+- Legal Department: legal@yogtatva.com (For copyright DMCA notifications or formal dispute notices).
+- Business Development: business@yogtatva.com (For commercial partnerships and API usage licensing).
+
+3. RESPONSE TIMES
+3.1. Standard Inquiries: We strive to respond to technical and general inquiries within forty-eight (48) to seventy-two (72) business hours.
+3.2. Urgent Inquiries (Billing/Security): We prioritize payment disputes and critical security bug reports, aiming for a response within twenty-four (24) to forty-eight (48) business hours.
+3.3. Support Operating Hours: Monday through Friday, 9:00 AM to 6:00 PM IST (Indian Standard Time), excluding public holidays in India.
+
+4. BUG REPORTING AND SUGGESTION FLOW
+If you find a camera tracking error or coordinate layout bug, please email us with:
+- Your device type (e.g. iPhone 15, Macbook Air M2);
+- Browser type and version (e.g. Chrome v126, Safari);
+- A description of the actions that caused the bug;
+- Screenshot attachments if applicable.
+
+5. ESCALATION PROCESS
+If your issue is not resolved within seven (7) business days, you can request an escalation by replying to the ticket thread with "ESCALATE" in the subject line, which routes the issue to our operations manager.
+
+6. CONTACT DETAILS
+Email: support@yogtatva.com
+Address: New Delhi, India

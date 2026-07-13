@@ -8,7 +8,7 @@ export default function Auth({ onLoginSuccess }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
-  const [agreed, setAgreed] = useState(false);
+  const [agreed, setAgreed] = useState(true);
 
   const [form, setForm] = useState({
     name: "",
@@ -391,7 +391,7 @@ export default function Auth({ onLoginSuccess }) {
               required
             />
             <label htmlFor="agree-terms" style={{ margin: 0, textTransform: 'none', letterSpacing: 'normal', fontSize: '12px', color: 'var(--text-secondary)', cursor: 'pointer', lineHeight: '1.4' }}>
-              I agree to the <a href="#privacy" onClick={(e) => { e.preventDefault(); alert("Privacy Policy:\n\nAll biometric skeletal tracking runs entirely locally in your browser memory and is never uploaded or sent to any server. Your personal profile and journal data is securely stored locally."); }} style={{ color: 'var(--accent-gold)', textDecoration: 'underline', fontWeight: '500' }}>Privacy Policy</a> and <a href="#terms" onClick={(e) => { e.preventDefault(); alert("Terms and Conditions:\n\nYogTatva is an AI yoga mentor tool provided for informational purposes only. Consult a doctor before starting any physical exercise routine."); }} style={{ color: 'var(--accent-gold)', textDecoration: 'underline', fontWeight: '500' }}>Terms of Service</a>.
+              I agree to the <a href="#privacy" onClick={(e) => { e.preventDefault(); window.open('/legal/privacy.txt', '_blank'); }} style={{ color: 'var(--accent-gold)', textDecoration: 'underline', fontWeight: '500' }}>Privacy Policy</a> and <a href="#terms" onClick={(e) => { e.preventDefault(); window.open('/legal/terms.txt', '_blank'); }} style={{ color: 'var(--accent-gold)', textDecoration: 'underline', fontWeight: '500' }}>Terms of Service</a>.
             </label>
           </div>
 
@@ -455,6 +455,17 @@ export default function Auth({ onLoginSuccess }) {
             className="btn-outline" 
             style={{ width: '100%', marginTop: '16px', justifyContent: 'center' }}
             onClick={() => {
+              // Clear previous guest profile & onboarding to prevent cached data from bleeding
+              localStorage.removeItem("wellness_guest_onboarding_complete");
+              localStorage.removeItem("wellness_guest_profile");
+              localStorage.removeItem("wellness_guest_conversation");
+              localStorage.removeItem("wellness_guest_mood");
+              localStorage.removeItem("wellness_guest_sleep");
+              localStorage.removeItem("wellness_guest_activities");
+              localStorage.removeItem("wellness_guest_observations");
+              localStorage.removeItem("wellness_guest_memories");
+              localStorage.removeItem("wellness_guest_daily_plan");
+
               const guestData = { id: 'guest', email: 'guest@yogtatva.local', name: 'Guest' };
               localStorage.setItem("yoga_current_user", JSON.stringify(guestData));
               onLoginSuccess(guestData);
@@ -462,6 +473,10 @@ export default function Auth({ onLoginSuccess }) {
           >
             Continue as Guest (Local Only)
           </button>
+          
+          <p style={{ fontSize: '11px', color: 'var(--text-secondary)', textAlign: 'center', marginTop: '20px', lineHeight: '1.4' }}>
+            By signing in, creating an account, or continuing as a guest, you automatically accept and agree to YogTatva's <a href="#terms" onClick={(e) => { e.preventDefault(); window.open('/legal/terms.txt', '_blank'); }} style={{ color: 'var(--accent-gold)', textDecoration: 'underline' }}>Terms of Service</a> and <a href="#privacy" onClick={(e) => { e.preventDefault(); window.open('/legal/privacy.txt', '_blank'); }} style={{ color: 'var(--accent-gold)', textDecoration: 'underline' }}>Privacy Policy</a>.
+          </p>
         </form>
       </div>
     </div>

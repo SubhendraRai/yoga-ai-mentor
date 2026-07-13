@@ -1,0 +1,37 @@
+YOGTATVA COPYRIGHT AND DMCA POLICY
+Last Updated: July 13, 2026
+
+1. INTELLECTUAL PROPERTY OWNERSHIP
+1.1. Proprietary Content: All content featured on the YogTatva Platform, including design assets, React source code, custom pose calibration data, CSS stylesheets, brand logo designs, text descriptions of yoga poses, voice guidance scripts, and system logos, is the property of YogTatva and is protected by Indian and international copyright and trademark laws.
+1.2. Trademark Usage: "YogTatva" and our logo are protected trademarks. You are prohibited from using our brand name, logo, or trademark elements without our express written permission.
+
+2. USER-GENERATED CONTENT LICENSE
+By posting notes, mood descriptions, or logs on the Platform, you grant YogTatva a non-exclusive, royalty-free, worldwide license to store, translate, and format this data as needed to run the Services.
+
+3. REPORTING COPYRIGHT INFRINGEMENT (DMCA NOTICE)
+If you believe that any material hosted on the Platform infringes upon a copyright that you own or control, you may submit a formal notification to our designated agent.
+To be effective, your notice must include:
+a) A physical or electronic signature of the copyright owner or authorized representative;
+b) Identification of the copyrighted work claimed to have been infringed;
+c) Specific details identifying the location of the infringing material on the Platform (e.g. Vercel URL);
+d) Your contact details (address, telephone number, and email);
+e) A statement that you have a good faith belief that use of the material is not authorized;
+f) A statement that the information in the notification is accurate, and, under penalty of perjury, that you are the copyright owner.
+
+Submit notices to:
+YogTatva Legal Department
+Email: copyright@yogtatva.com
+Address: New Delhi, India
+
+4. COUNTER-NOTIFICATION PROCESS
+If you believe that your content was removed by mistake, you can submit a counter-notice containing:
+a) Your signature and contact info;
+b) Identification of the material that was removed and its previous location;
+c) A statement under penalty of perjury that you believe the material was removed as a result of mistake or misidentification.
+
+5. REPEAT INFRINGER POLICY
+We reserve the right to terminate the accounts of users who repeatedly violate this Copyright Policy.
+
+6. CONTACT DETAILS
+Email: copyright@yogtatva.com
+Address: New Delhi, India

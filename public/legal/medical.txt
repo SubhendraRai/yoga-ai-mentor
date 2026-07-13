@@ -1,0 +1,49 @@
+YOGTATVA MEDICAL AND HEALTH DISCLAIMER
+Last Updated: July 13, 2026
+
+1. EDUCATIONAL AND WELLNESS PURPOSE ONLY
+1.1. The content, software, AI models, skeletal pose correction outputs, observations, and recommendations provided on the YogTatva Platform (collectively, the "Services") are designed solely for educational, motivational, and general wellness purposes.
+1.2. The Services are intended to support your physical, mental, and general wellbeing by providing personalized, automated, rule-based yoga sequence suggestions and tracking.
+
+2. NOT MEDICAL ADVICE
+2.1. YOGTATVA DOES NOT PROVIDE MEDICAL SERVICES, CLINICAL DIAGNOSES, PREVENTATIVE DIAGNOSES, OR MEDICAL TREATMENT PLANS.
+2.2. The Platform is an automated digital system. The AI Wellness Mentor, live pose check algorithms, and wellness scores do not replace the judgment of a licensed healthcare professional, physical therapist, doctor, or trained yoga instructor.
+2.3. Do not ignore professional medical advice, delay seeking medical advice, or interrupt clinical treatments because of any advice, chat response, or yoga pose recommendation you read on the Platform.
+
+3. CONSULT PHYSICIANS BEFORE INITIATING PRACTICE
+3.1. You must consult a qualified physician or healthcare provider before starting any physical exercise program, including the yoga sequences suggested by the Platform.
+3.2. Prior consultation is particularly critical if you:
+- Have pre-existing heart conditions, high blood pressure, or chest pains;
+- Have orthopedic conditions, joint pain, spine issues, herniated discs, or arthritis;
+- Experience frequent dizziness, fainting, or loss of balance;
+- Are suffering from chronic diseases (e.g. diabetes, asthma, neurological disorders);
+- Are recovering from recent surgeries or major physical injuries.
+
+4. PREGNANCY AND POST-PARTUM DISCLAIMER
+4.1. Physical exercise, including specific yoga poses, twisting movements, and deep stretching, carries unique risks during pregnancy and the post-partum period.
+4.2. If you are pregnant, nursing, or post-partum, you must obtain direct medical clearance from your obstetrician or healthcare professional before using the Platform. Do not perform any deep inversions, intense abdominal twists, or prone poses unless explicitly approved by your doctor.
+
+5. RISK OF PHYSICAL INJURY AND USER ASSUMPTION OF RISK
+5.1. Yoga involves physical exertion and movement which can inflict physical injury, sprains, joint strains, pulled muscles, or cardiovascular distress.
+5.2. By using the Platform, you acknowledge that you are voluntarily participating in these physical activities, and you assume all risk of injury, strain, illness, or death that might result from your practice.
+5.3. YogTatva is not responsible or liable for any injuries, medical emergencies, or physical complications arising from your use of the Platform or your performance of any recommended yoga poses.
+
+6. AI-GENERATED RECOMMENDATIONS LIMITATION
+6.1. All yoga flows, session lengths, and focus suggestions are generated dynamically by artificial intelligence models (Groq Llama models) and deterministic rule systems based on your self-reported onboarding details.
+6.2. The AI cannot physically see your environment, feel your limits, or detect pre-existing muscle tightness. The recommendations are automated predictions and may not suit your immediate physical state. Always prioritize your body's feedback over the AI suggestions.
+
+7. EMERGENCY DISCLAIMER AND EMERGENCY CONTACTS
+7.1. THE PLATFORM IS NOT EQUIPPED TO HANDLE MEDICAL EMERGENCIES. IF YOU EXPERIENCE A MEDICAL EMERGENCY (E.G. SEVERE CHEST PAIN, DIFFICULTY BREATHING, SUDDEN NUMBNESS, OR LOSS OF CONSCIOUSNESS) DURING YOUR PRACTICE, YOU MUST IMMEDIATELY STOP AND SEEK EMERGENCY SERVICES.
+7.2. Emergency Contacts (India):
+- National Emergency Number: 112
+- Ambulance Services: 102
+- Medical consultation helplines: Consult local emergency responders.
+
+8. LIMITATION OF LIABILITY
+YogTatva shall not be held liable for any direct, indirect, consequential, or special damages, including personal injury, physical disability, health degradation, or financial loss, arising from your reliance on the wellness advice, chats, or yoga flows provided on the Platform.
+
+9. CONTACT INFORMATION
+If you have questions regarding this Medical Disclaimer, please contact us at:
+YogTatva Support
+Email: support@yogtatva.com
+Address: New Delhi, India

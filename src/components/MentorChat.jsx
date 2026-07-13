@@ -5,7 +5,7 @@ import { getChatHistory, saveChatMessage, getUserMemories, extractAndSaveMemorie
 import { playSound } from '../lib/audio';
 import { Send, Trash2, Compass } from 'lucide-react';
 
-export default function MentorChat({ currentUser }) {
+export default function MentorChat({ currentUser, onNavigate }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -138,31 +138,44 @@ export default function MentorChat({ currentUser }) {
       </div>
 
       <div>
-        <div className="chat-chips">
-          {suggestionChips.map(chip => (
-            <button key={chip} className="chat-chip" onClick={() => handleSend(chip)} disabled={isLoading}>
-              {chip}
+        {currentUser?.id === 'guest' && messages.filter(m => m.role === 'user').length >= 4 ? (
+          <div className="card" style={{ padding: '24px 20px', textAlign: 'center', borderColor: 'var(--accent-gold-dim)', background: 'var(--bg-secondary)', borderRadius: '12px' }}>
+            <p style={{ color: 'var(--text-primary)', marginBottom: '16px', fontFamily: "'Cormorant Garamond', serif", fontSize: '18px' }}>
+              ✨ You have completed your 4 free guest chats. Sign up or log in to unlock unlimited conversations with your AI Mentor.
+            </p>
+            <button className="submit-btn" onClick={() => onNavigate('settings')} style={{ maxWidth: '240px', margin: '0 auto' }}>
+              Sign Up / Register Account →
             </button>
-          ))}
-        </div>
-        
-        <div className="chat-input-area">
-          <input
-            className="chat-input"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-            placeholder="Ask your mentor anything..."
-            disabled={isLoading}
-          />
-          <button 
-            className="chat-send-btn" 
-            onClick={() => handleSend()}
-            disabled={!input.trim() || isLoading}
-          >
-            <Send size={18} style={{ marginLeft: '-2px' }} />
-          </button>
-        </div>
+          </div>
+        ) : (
+          <>
+            <div className="chat-chips">
+              {suggestionChips.map(chip => (
+                <button key={chip} className="chat-chip" onClick={() => handleSend(chip)} disabled={isLoading}>
+                  {chip}
+                </button>
+              ))}
+            </div>
+            
+            <div className="chat-input-area">
+              <input
+                className="chat-input"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+                placeholder="Ask your mentor anything..."
+                disabled={isLoading}
+              />
+              <button 
+                className="chat-send-btn" 
+                onClick={() => handleSend()}
+                disabled={!input.trim() || isLoading}
+              >
+                <Send size={18} style={{ marginLeft: '-2px' }} />
+              </button>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

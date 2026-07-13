@@ -293,7 +293,7 @@ export default function App() {
             )
           ) : null}
           
-          {currentPage === 'chat' && <MentorChat currentUser={currentUser} />}
+          {currentPage === 'chat' && <MentorChat currentUser={currentUser} onNavigate={(page) => setCurrentPage(page)} />}
           
           {currentPage === 'mood' && (
             <div style={{ padding: '40px 0' }}>

@@ -1,0 +1,42 @@
+YOGTATVA DATA DELETION AND RETENTION POLICY
+Last Updated: July 13, 2026
+
+1. USER RIGHTS AND POLICY STATEMENT
+1.1. YogTatva respects your right to control your personal data. We provide clear, straightforward mechanisms for users to request the permanent deletion of their accounts and associated wellness information, in compliance with GDPR, the Indian DPDP Act 2023, and global data protection guidelines.
+1.2. This policy outlines how you can initiate data deletion, what data is removed, and the processing timelines.
+
+2. WHAT DATA IS SUBJECT TO DELETION?
+Upon executing a data deletion request, the following information is permanently purged:
+- Account Profiles: Registration email, password credentials, onboarding survey details, goals, and occupational notes.
+- Progress Logs: Daily mood logs, sleep quality records, pose tracking stats, score logs, and exercise histories.
+- AI Conversations: The complete message log with your AI Mentor.
+- Observations: Algorithmic logs and health memories extracted during chat sessions.
+
+3. DATA DELETION PROCESS
+3.1. Guest Mode Deletion: If you use the Platform in Guest Mode, your data exists exclusively in your browser's local storage. To delete all guest logs instantly:
+- Go to the Settings page in the Platform menu;
+- Click "Clear All Wellness Data";
+- Confirm the warning popup.
+This deletes the local storage keys immediately.
+
+3.2. Registered User Deletion (Self-Service):
+- Go to the Settings page;
+- Click "Clear All Wellness Data" (to wipe local session caches);
+- To delete your cloud database profile completely, email privacy@yogtatva.com with the subject line "Request Account Deletion" from your registered email.
+
+4. VERIFICATION AND PROCESSING TIMELINES
+4.1. Verification: To prevent unauthorized deletion of accounts, we will verify your identity before processing the request. This is handled by requiring you to respond to a confirmation link sent to your registered email address.
+4.2. Timeline: Once verified, we will process and delete your cloud records from our active Supabase databases within thirty (30) business days.
+4.3. Backup Deletion: Database backups are automatically overwritten or deleted within ninety (90) days of active table deletion.
+
+5. EXCEPTIONS AND LEGAL OBLIGATIONS
+We may retain limited transaction logs or user metadata if required to comply with:
+- Statutory financial auditing requirements under Indian tax laws;
+- Legitimate fraud prevention investigations;
+- Active court orders or judicial subpoenas.
+
+6. CONTACT DETAILS
+To submit a deletion request or follow up on a pending deletion, please contact:
+Data Protection Officer
+Email: privacy@yogtatva.com
+Address: New Delhi, India
