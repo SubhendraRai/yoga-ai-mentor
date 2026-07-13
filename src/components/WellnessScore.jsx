@@ -79,21 +79,24 @@ export default function WellnessScore({ score, breakdown }) {
 
         {breakdown && (
           <div className="score-breakdown">
-            {Object.entries(breakdown).map(([key, val]) => (
-              <div key={key} className="score-bar-row">
-                <span style={{ width: '90px' }}>{getBreakdownLabel(key)}</span>
-                <div className="score-bar-track">
-                  <div 
-                    className="score-bar-fill" 
-                    style={{ 
-                      width: `${val}%`, 
-                      background: getColor(val),
-                      transitionDuration: '1.5s'
-                    }} 
-                  />
+            {Object.entries(breakdown).map(([key, val]) => {
+              const pct = Math.min(100, Math.max(0, (val / 25) * 100));
+              return (
+                <div key={key} className="score-bar-row">
+                  <span style={{ width: '90px' }}>{getBreakdownLabel(key)}</span>
+                  <div className="score-bar-track">
+                    <div 
+                      className="score-bar-fill" 
+                      style={{ 
+                        width: `${pct}%`, 
+                        background: getColor(pct),
+                        transitionDuration: '1.5s'
+                      }} 
+                    />
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
