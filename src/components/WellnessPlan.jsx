@@ -8,22 +8,26 @@ export default function WellnessPlan({ plan, onRegenerate, onStartSession, onLea
   useEffect(() => {
     if (plan) {
       try {
-        // AI returns raw JSON string, sometimes wrapped in markdown block
         const cleanJson = plan.replace(/```json/g, '').replace(/```/g, '').trim();
         const data = JSON.parse(cleanJson);
         setParsedPlan(data);
         
-        // Support both old format (poseIds) and new dynamic format (poses)
-        if (data.poses) {
-          // New dynamic format
+        if (data.poses && data.poses.length > 0) {
+          const firstPose = data.poses[0];
+          // New AI format uses { englishName, sanskritName, duration, shortBenefits, imageUrl }
+          // Old rules-engine format uses { englishName, sanskritName, duration, shortBenefits, imageUrl } too after normalization
+          // Legacy library format may have a different shape — normalise everything here
           const posesWithImages = data.poses.map(pose => ({
-            ...pose,
-            id: pose.sanskritName.toLowerCase().replace(/[^a-z0-9]/g, '_'),
-            imageUrl: `https://placehold.co/800x600/13131a/c4a96a?text=${encodeURIComponent(pose.englishName)}&font=Playfair+Display`
+            id: pose.id || (pose.englishName || pose.name || '').toLowerCase().replace(/[^a-z0-9]/g, '_'),
+            englishName: pose.englishName || pose.name || 'Yoga Pose',
+            sanskritName: pose.sanskritName || '',
+            duration: pose.duration || pose.duration_mins || 3,
+            shortBenefits: pose.shortBenefits || pose.benefits || [],
+            imageUrl: pose.imageUrl
+              || `https://placehold.co/800x600/13131a/c4a96a?text=${encodeURIComponent(pose.englishName || pose.name || 'Pose')}&font=Playfair+Display`
           }));
           setRecommendedPoses(posesWithImages);
         } else if (data.poseIds) {
-          // Fallback if AI hasn't been refreshed
           setRecommendedPoses([]);
         }
       } catch (e) {

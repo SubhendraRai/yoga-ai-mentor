@@ -3,13 +3,50 @@ import { WellnessMemory } from '../lib/wellnessMemory';
 import { chatWithMentor } from '../lib/ai';
 import { getChatHistory, saveChatMessage, getUserMemories, extractAndSaveMemories } from '../lib/supabaseMemory';
 import { playSound } from '../lib/audio';
-import { Send, Trash2, Compass } from 'lucide-react';
+import { Send, Trash2, Compass, CheckCircle2 } from 'lucide-react';
+
+// ─── Parse and apply an UPDATE_ROUTINE JSON action block from AI response ─────
+function parseAndApplyRoutineUpdate(rawResponse) {
+  const jsonRegex = /```json([\s\S]*?)```/;
+  const match = rawResponse.match(jsonRegex);
+  let routineApplied = false;
+
+  if (match && match[1]) {
+    try {
+      const toolCall = JSON.parse(match[1].trim());
+      if (toolCall.action === 'UPDATE_ROUTINE' && toolCall.payload) {
+        const { message, poses } = toolCall.payload;
+        // Map to the format WellnessMemory / WellnessPlan expect
+        const normalizedPoses = (poses || []).map(p => ({
+          englishName: p.name,
+          sanskritName: p.sanskritName || '',
+          duration: p.duration_mins || 3,
+          shortBenefits: p.benefits || [],
+          imageUrl: `https://placehold.co/800x600/13131a/c4a96a?text=${encodeURIComponent(p.name)}&font=Playfair+Display`,
+          id: p.id || p.name.toLowerCase().replace(/[^a-z0-9]/g, '_')
+        }));
+        const planPayload = JSON.stringify({ message: message || 'Your personalised AI routine.', poses: normalizedPoses });
+        WellnessMemory.saveDailyPlan(planPayload);
+        // Notify Dashboard to reload
+        window.dispatchEvent(new Event('wellness_synced'));
+        routineApplied = true;
+      }
+    } catch (e) {
+      console.error('Error parsing AI tool call:', e);
+    }
+  }
+
+  // Return clean text (strip the JSON block)
+  const cleanText = rawResponse.replace(jsonRegex, '').trim();
+  return { cleanText, routineApplied };
+}
 
 export default function MentorChat({ currentUser, onNavigate }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [userMemories, setUserMemories] = useState('');
+  const [routineToast, setRoutineToast] = useState(false);
   const messagesEndRef = useRef(null);
 
   const suggestionChips = [
@@ -80,11 +117,17 @@ export default function MentorChat({ currentUser, onNavigate }) {
       const response = await chatWithMentor(fullContext, updatedMessages, text.trim());
       
       if (response.success) {
-        playSound.chime(); // Sound effect when AI replies
-        const mentorMsg = { role: 'mentor', text: response.text, timestamp: Date.now() };
+        playSound.chime();
+        // ── Parse JSON tool call and apply routine update if present ──
+        const { cleanText, routineApplied } = parseAndApplyRoutineUpdate(response.text);
+        const mentorMsg = { role: 'mentor', text: cleanText, timestamp: Date.now() };
         setMessages([...updatedMessages, mentorMsg]);
+        if (routineApplied) {
+          setRoutineToast(true);
+          setTimeout(() => setRoutineToast(false), 4000);
+        }
         if (currentUser?.id) {
-          await saveChatMessage(currentUser.id, 'model', response.text);
+          await saveChatMessage(currentUser.id, 'model', cleanText);
         }
       } else {
         playSound.error();
@@ -111,7 +154,20 @@ export default function MentorChat({ currentUser, onNavigate }) {
   };
 
   return (
-    <div className="chat-container">
+    <div className="chat-container" style={{ position: 'relative' }}>
+      {/* Routine update toast notification */}
+      {routineToast && (
+        <div style={{
+          position: 'absolute', top: '12px', left: '50%', transform: 'translateX(-50%)',
+          background: 'linear-gradient(135deg, #2a7a4f, #1a5c38)',
+          color: '#fff', padding: '10px 18px', borderRadius: '24px',
+          display: 'flex', alignItems: 'center', gap: '8px',
+          fontSize: '13px', fontWeight: '600', zIndex: 100,
+          boxShadow: '0 4px 20px rgba(0,0,0,0.4)', animation: 'fadeUp 0.3s ease'
+        }}>
+          <CheckCircle2 size={16} /> Routine updated! Check your dashboard.
+        </div>
+      )}
       <div className="chat-header">
         <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
           <Compass size={20} /> Talk to Mentor
