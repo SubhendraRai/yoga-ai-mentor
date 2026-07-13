@@ -1,4 +1,5 @@
 // src/lib/poseAnalyzer.js
+import { compareWithAtlas, hasAtlasBaseline } from './poseMath';
 
 /**
  * Calculates the angle between three points in 2D space.
@@ -58,7 +59,8 @@ function checkKeyVisibility(landmarks, indices) {
 
 /**
  * Analyzes landmarks against a target pose.
- * @returns { accuracy: number, feedback: string, angleScore: number, visibilityScore: number, requiredAngles: string, currentAngles: string, angleErrors: string, poseMatchReason: string, poseRejectionReason: string }
+ * Priority: Atlas-based 3D comparison (if baseline exists) → falls back to angle math.
+ * @returns { accuracy, feedback, angleScore, visibilityScore, requiredAngles, currentAngles, angleErrors, poseMatchReason, poseRejectionReason, corrections, atlasUsed }
  */
 export function analyzePose(landmarks, poseId) {
   if (!landmarks || landmarks.length < 33) return { 
@@ -70,8 +72,39 @@ export function analyzePose(landmarks, poseId) {
     currentAngles: "N/A",
     angleErrors: "Missing landmarks",
     poseMatchReason: "None",
-    poseRejectionReason: "User is out of frame"
+    poseRejectionReason: "User is out of frame",
+    corrections: [],
+    atlasUsed: false,
   };
+
+  // ── ATLAS COMPARISON (Yoga-82 reference baselines) ──────────────────────────
+  if (hasAtlasBaseline(poseId)) {
+    const atlas = compareWithAtlas(landmarks, poseId);
+    if (atlas.hasBaseline) {
+      const clusterSummary = atlas.clusterErrors
+        ? Object.entries(atlas.clusterErrors).map(([k, v]) => `${k}: ${v}%`).join(', ')
+        : 'N/A';
+      return {
+        accuracy: atlas.accuracy,
+        feedback: atlas.feedback,
+        angleScore: atlas.accuracy,
+        visibilityScore: 1.0,
+        requiredAngles: 'Atlas baseline',
+        currentAngles: clusterSummary,
+        angleErrors: atlas.corrections.length > 0
+          ? atlas.corrections.map(c => `${c.joint_cluster}: ${c.accuracy}%`).join(', ')
+          : 'None',
+        poseMatchReason: atlas.accuracy >= 85 ? 'All clusters within tolerance of Yoga-82 atlas' : 'None',
+        poseRejectionReason: atlas.accuracy < 85
+          ? (atlas.corrections[0]?.feedback_message || 'Alignment off')
+          : 'None',
+        corrections: atlas.corrections,
+        atlasUsed: true,
+      };
+    }
+  }
+  // ──────────────────────────────────────────────────────────────────
+  // Fallback: existing angle-based math for poses without atlas baselines
 
   // Common landmarks
   const lShoulder = landmarks[11];
@@ -97,6 +130,7 @@ export function analyzePose(landmarks, poseId) {
   let angleErrors = "None";
   let poseMatchReason = "None";
   let poseRejectionReason = "None";
+
 
   // Calculate minimum visibility of all landmarks
   let minVis = 1.0;

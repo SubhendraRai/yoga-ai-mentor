@@ -48,6 +48,7 @@ export default function MediaPipePose({ session = [], initialPoseIndex = 0, onEx
   const [feedback, setFeedback] = useState("Initializing camera...");
   const [accuracy, setAccuracy] = useState(0);
   const [isPerfect, setIsPerfect] = useState(false);
+  const [corrections, setCorrections] = useState([]); // Per-cluster atlas corrections
   
   const safeSession = session || [];
 
@@ -55,6 +56,8 @@ export default function MediaPipePose({ session = [], initialPoseIndex = 0, onEx
   const [holdTimeLeft, setHoldTimeLeft] = useState(0);
   const [sessionComplete, setSessionComplete] = useState(false);
   const [sessionStats, setSessionStats] = useState({ averageAccuracy: 0, totalTime: 0, totalPoses: 0 });
+  const [trackingStatus, setTrackingStatus] = useState('INITIALIZING'); // INITIALIZING | TRACKING_ACTIVE | STEP_BACK_WARNING | NO_BODY_DETECTED
+  const bodyInFrameRef = useRef(false); // Guards the timer — only ticks when mandatory joints are visible
   const accuracyHistory = useRef([]);
   const sessionStartTime = useRef(Date.now());
   const lastTickTime = useRef(Date.now());
@@ -178,7 +181,8 @@ export default function MediaPipePose({ session = [], initialPoseIndex = 0, onEx
       lastTickTime.current = now;
 
       setHoldTimeLeft(prev => {
-        const isTrackingValid = accuracyRef.current >= 85;
+        // Timer ONLY ticks when mandatory joints (shoulders + hips) are reliably in frame
+        const isTrackingValid = accuracyRef.current >= 85 && bodyInFrameRef.current;
         if (isTrackingValid) {
           lastValidPoseTimeRef.current = now;
           if (prev > 0 && !sessionComplete) {
@@ -357,6 +361,42 @@ export default function MediaPipePose({ session = [], initialPoseIndex = 0, onEx
 
         const activePoseId = safeSession[currentIndexRef.current]?.id || 'generic';
 
+        // ── MANDATORY LANDMARK GUARD ─────────────────────────────────────────
+        // Require left shoulder (11), right shoulder (12), left hip (23), right hip (24)
+        // to be visible with confidence > 0.65 before running accuracy calculations.
+        // This prevents stale accuracyRef values from ticking the timer when the
+        // user steps out of frame or only their face is visible.
+        const MANDATORY_INDICES = [11, 12, 23, 24];
+        const mandatoryVisible = smoothedLandmarks
+          ? MANDATORY_INDICES.every(idx => {
+              const lm = smoothedLandmarks[idx];
+              return lm && lm.visibility > 0.65;
+            })
+          : false;
+
+        if (!mandatoryVisible) {
+          // Kill accuracy immediately so the timer halts
+          accuracyRef.current = 0;
+          bodyInFrameRef.current = false;
+          if (now - lastUiUpdateTime.current > 200) {
+            lastUiUpdateTime.current = now;
+            const status = smoothedLandmarks ? 'STEP_BACK_WARNING' : 'NO_BODY_DETECTED';
+            setTrackingStatus(status);
+            setAccuracy(0);
+            setIsPerfect(false);
+            setFeedback(smoothedLandmarks
+              ? 'Step back — your shoulders and torso must be fully visible.'
+              : 'No pose detected. Step into the frame.');
+          }
+          canvasCtx.restore();
+          return;
+        }
+
+        // Mandatory joints visible — allow tracking
+        bodyInFrameRef.current = true;
+        if (trackingStatus !== 'TRACKING_ACTIVE') setTrackingStatus('TRACKING_ACTIVE');
+        // ─────────────────────────────────────────────────────────────────────
+
         if (smoothedLandmarks && window.drawConnectors && window.drawLandmarks) {
           window.drawConnectors(canvasCtx, smoothedLandmarks, window.POSE_CONNECTIONS, { color: 'rgba(255, 255, 255, 0.4)', lineWidth: 4 });
           window.drawLandmarks(canvasCtx, smoothedLandmarks, { color: 'var(--accent-gold)', lineWidth: 2, radius: 4 });
@@ -394,6 +434,7 @@ export default function MediaPipePose({ session = [], initialPoseIndex = 0, onEx
             accuracyHistory.current.push(analysis.accuracy);
             setFeedback(analysis.feedback);
             setIsPerfect(analysis.accuracy >= 85);
+            if (analysis.corrections) setCorrections(analysis.corrections);
 
             // Determine pose loss reason
             let poseLossReason = 'None';
@@ -458,6 +499,9 @@ export default function MediaPipePose({ session = [], initialPoseIndex = 0, onEx
           }
 
         } else if (!results.poseLandmarks) {
+          // No landmarks detected at all — reset guard immediately
+          accuracyRef.current = 0;
+          bodyInFrameRef.current = false;
           // No landmarks detected - update accuracy & reasons within the 5 FPS throttled block
           if (now - lastUiUpdateTime.current > 200) {
             lastUiUpdateTime.current = now;
@@ -628,6 +672,39 @@ export default function MediaPipePose({ session = [], initialPoseIndex = 0, onEx
         height={480} 
         style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)' }}
       ></canvas>
+
+      {/* Step-Back / No-Body Tracking Warning Overlay */}
+      {(trackingStatus === 'STEP_BACK_WARNING' || trackingStatus === 'NO_BODY_DETECTED') && (
+        <div style={{
+          position: 'absolute', inset: 0,
+          background: 'rgba(0,0,0,0.72)',
+          display: 'flex', flexDirection: 'column',
+          alignItems: 'center', justifyContent: 'center',
+          zIndex: 20,
+          backdropFilter: 'blur(4px)',
+          transition: 'opacity 0.3s ease'
+        }}>
+          <div style={{
+            background: trackingStatus === 'STEP_BACK_WARNING' ? '#c0392b' : '#e07820',
+            borderRadius: '50%', width: '56px', height: '56px',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: '28px', marginBottom: '16px',
+            animation: 'pulse 1.5s ease-in-out infinite',
+            boxShadow: '0 0 0 0 rgba(192,57,43,0.4)'
+          }}>⚠️</div>
+          <h3 style={{ color: '#fff', fontSize: '22px', fontWeight: '700', marginBottom: '8px', fontFamily: "'Cormorant Garamond', serif", letterSpacing: '0.04em' }}>
+            {trackingStatus === 'STEP_BACK_WARNING' ? 'Step Back' : 'No Body Detected'}
+          </h3>
+          <p style={{ color: 'rgba(255,255,255,0.75)', fontSize: '14px', textAlign: 'center', maxWidth: '280px', lineHeight: '1.6' }}>
+            {trackingStatus === 'STEP_BACK_WARNING'
+              ? 'Your shoulders and torso must be fully visible in the frame to measure accuracy. Session timer is paused.'
+              : 'Stand in front of your camera so your full torso is visible. The session timer is paused until you are in frame.'}
+          </p>
+          <div style={{ marginTop: '16px', background: 'rgba(255,255,255,0.1)', borderRadius: '8px', padding: '8px 16px', fontSize: '12px', color: 'rgba(255,255,255,0.5)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+            ⏸ Timer paused
+          </div>
+        </div>
+      )}
 
       {/* Top Header */}
       <div style={{ position: 'absolute', top: '40px', left: '0', right: '0', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', padding: '0 24px', zIndex: 10 }}>
@@ -822,28 +899,61 @@ export default function MediaPipePose({ session = [], initialPoseIndex = 0, onEx
       </div>
 
       {/* Bottom Feedback Bar */}
-      <div style={{ position: 'absolute', bottom: '40px', left: '24px', right: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', zIndex: 10 }}>
-        <div style={{ 
-          background: isPerfect ? 'rgba(76, 175, 80, 0.9)' : 'rgba(0,0,0,0.8)', 
-          backdropFilter: 'blur(10px)',
-          padding: '16px 32px', 
-          borderRadius: '30px', 
-          color: 'white', 
-          fontSize: '18px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '12px',
-          boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
-          transition: 'all 0.3s ease',
-          maxWidth: '60%'
-        }}>
-          {isPerfect && <CheckCircle size={24} />}
-          {feedback}
-        </div>
+      <div style={{ position: 'absolute', bottom: '40px', left: '24px', right: '24px', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '10px', zIndex: 10 }}>
 
-        <button className="btn-outline" onClick={handlePoseComplete} style={{ background: 'rgba(0,0,0,0.6)', color: 'white', border: '1px solid rgba(255,255,255,0.2)', backdropFilter: 'blur(10px)' }}>
-          Skip Pose <ChevronRight size={16} style={{ marginLeft: '8px' }}/>
-        </button>
+        {/* Atlas Correction Chips — only shown when atlas baseline is active */}
+        {corrections.length > 0 && trackingStatus === 'TRACKING_ACTIVE' && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', width: '100%' }}>
+            {corrections.slice(0, 4).map((c, i) => (
+              <div
+                key={i}
+                style={{
+                  background: c.severity === 'critical' ? 'rgba(192,57,43,0.85)' : 'rgba(230,126,34,0.85)',
+                  backdropFilter: 'blur(10px)',
+                  borderRadius: '20px',
+                  padding: '6px 14px',
+                  color: '#fff',
+                  fontSize: '13px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  boxShadow: '0 2px 12px rgba(0,0,0,0.4)',
+                  border: '1px solid rgba(255,255,255,0.15)',
+                  animation: 'fadeUp 0.3s ease',
+                }}
+              >
+                <span style={{ opacity: 0.75, fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.08em', marginRight: '2px' }}>
+                  {c.joint_cluster}
+                </span>
+                {c.feedback_message}
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+          <div style={{ 
+            background: isPerfect ? 'rgba(76, 175, 80, 0.9)' : 'rgba(0,0,0,0.8)', 
+            backdropFilter: 'blur(10px)',
+            padding: '16px 32px', 
+            borderRadius: '30px', 
+            color: 'white', 
+            fontSize: '18px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
+            transition: 'all 0.3s ease',
+            maxWidth: '60%'
+          }}>
+            {isPerfect && <CheckCircle size={24} />}
+            {feedback}
+          </div>
+
+          <button className="btn-outline" onClick={handlePoseComplete} style={{ background: 'rgba(0,0,0,0.6)', color: 'white', border: '1px solid rgba(255,255,255,0.2)', backdropFilter: 'blur(10px)' }}>
+            Skip Pose <ChevronRight size={16} style={{ marginLeft: '8px' }}/>
+          </button>
+        </div>
       </div>
     </div>,
     document.body
