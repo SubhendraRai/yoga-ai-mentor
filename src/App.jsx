@@ -118,6 +118,7 @@ export default function App() {
   const handleLogout = async () => {
     await supabase.auth.signOut();
     localStorage.removeItem("yoga_current_user");
+    setCurrentPage('dashboard');
     setCurrentUser(null);
   };
 

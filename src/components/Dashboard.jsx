@@ -37,7 +37,7 @@ export default function Dashboard({ onNavigate, onStartSession, onLearnMore }) {
     window.addEventListener('wellness_synced', handleSync);
 
     // Check if user has seen the walkthrough
-    if (!localStorage.getItem('wellness_has_seen_tour')) {
+    if (!WellnessMemory.getItem('has_seen_tour')) {
       setShowWalkthrough(true);
     }
 
@@ -45,7 +45,7 @@ export default function Dashboard({ onNavigate, onStartSession, onLearnMore }) {
   }, []);
 
   const handleWalkthroughComplete = () => {
-    localStorage.setItem('wellness_has_seen_tour', 'true');
+    WellnessMemory.setItem('has_seen_tour', 'true');
     setShowWalkthrough(false);
   };
 
@@ -54,8 +54,8 @@ export default function Dashboard({ onNavigate, onStartSession, onLearnMore }) {
     
     // Greeting (Daily Cache)
     const todayStr = new Date().toISOString().split('T')[0];
-    const cachedGreeting = localStorage.getItem('wellness_greeting');
-    const greetingDate = localStorage.getItem('wellness_greeting_date');
+    const cachedGreeting = WellnessMemory.getItem('greeting');
+    const greetingDate = WellnessMemory.getItem('greeting_date');
     
     if (cachedGreeting && greetingDate === todayStr) {
       setGreeting(cachedGreeting);
@@ -63,8 +63,8 @@ export default function Dashboard({ onNavigate, onStartSession, onLearnMore }) {
       generateMorningGreeting(context).then(res => {
         if (res.success) {
           setGreeting(res.text);
-          localStorage.setItem('wellness_greeting', res.text);
-          localStorage.setItem('wellness_greeting_date', todayStr);
+          WellnessMemory.setItem('greeting', res.text);
+          WellnessMemory.setItem('greeting_date', todayStr);
         } else {
           setGreeting(`Good ${isAM ? 'morning' : 'evening'}, ${profile?.name || 'Om'}. Ready for your practice?`);
         }

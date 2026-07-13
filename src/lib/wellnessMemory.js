@@ -12,29 +12,54 @@ export const WellnessMemory = {
   // Sync flag
   isSyncing: false,
   
-  // Current user
+  // Scoping helpers to isolate data by active user
+  getUserIdSync: () => {
+    try {
+      const localUser = JSON.parse(localStorage.getItem("yoga_current_user"));
+      if (localUser) return localUser.id || 'guest';
+    } catch (e) {}
+    return 'guest';
+  },
+
+  getScopedKey: (keyName) => {
+    const userId = WellnessMemory.getUserIdSync();
+    return `wellness_${userId}_${keyName}`;
+  },
+
+  getItem: (key) => {
+    return localStorage.getItem(WellnessMemory.getScopedKey(key));
+  },
+
+  setItem: (key, value) => {
+    localStorage.setItem(WellnessMemory.getScopedKey(key), value);
+  },
+
+  removeItem: (key) => {
+    localStorage.removeItem(WellnessMemory.getScopedKey(key));
+  },
+
+  // Current user (async for database operations)
   getUserId: async () => {
-    // Check if guest
     try {
       const localUser = JSON.parse(localStorage.getItem("yoga_current_user"));
       if (localUser && localUser.id === 'guest') return 'guest';
     } catch (e) {}
 
     const { data } = await supabase.auth.getSession();
-    return data?.session?.user?.id;
+    return data?.session?.user?.id || 'guest';
   },
 
   // ------------------------------------------------------------------------
   // PROFILE
   // ------------------------------------------------------------------------
   getProfile: () => {
-    return JSON.parse(localStorage.getItem('wellness_profile')) || null;
+    return JSON.parse(WellnessMemory.getItem('profile')) || null;
   },
 
   updateProfile: async (updates) => {
     const current = WellnessMemory.getProfile() || {};
     const updated = { ...current, ...updates };
-    localStorage.setItem('wellness_profile', JSON.stringify(updated));
+    WellnessMemory.setItem('profile', JSON.stringify(updated));
     
     // Cloud Sync
     const userId = await WellnessMemory.getUserId();
@@ -63,12 +88,12 @@ export const WellnessMemory = {
   },
 
   isOnboardingComplete: () => {
-    return localStorage.getItem('wellness_onboarding_complete') === 'true';
+    return WellnessMemory.getItem('onboarding_complete') === 'true';
   },
 
   completeOnboarding: async (profileData) => {
     await WellnessMemory.updateProfile(profileData);
-    localStorage.setItem('wellness_onboarding_complete', 'true');
+    WellnessMemory.setItem('onboarding_complete', 'true');
   },
 
   // ------------------------------------------------------------------------
@@ -78,7 +103,7 @@ export const WellnessMemory = {
     const entry = { id: generateUUID(), level, note, timestamp: new Date().toISOString() };
     const history = WellnessMemory.getMoodHistory(30);
     history.push(entry);
-    localStorage.setItem('wellness_mood', JSON.stringify(history));
+    WellnessMemory.setItem('mood', JSON.stringify(history));
 
     // Cloud Sync
     const userId = await WellnessMemory.getUserId();
@@ -93,7 +118,7 @@ export const WellnessMemory = {
   },
 
   getMoodHistory: (days = 7) => {
-    const history = JSON.parse(localStorage.getItem('wellness_mood')) || [];
+    const history = JSON.parse(WellnessMemory.getItem('mood')) || [];
     if (!days) return history;
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - days);
@@ -112,7 +137,7 @@ export const WellnessMemory = {
     const entry = { id: generateUUID(), hours, quality, timestamp: new Date().toISOString() };
     const history = WellnessMemory.getSleepHistory(30);
     history.push(entry);
-    localStorage.setItem('wellness_sleep', JSON.stringify(history));
+    WellnessMemory.setItem('sleep', JSON.stringify(history));
 
     // Cloud Sync
     const userId = await WellnessMemory.getUserId();
@@ -127,7 +152,7 @@ export const WellnessMemory = {
   },
 
   getSleepHistory: (days = 7) => {
-    const history = JSON.parse(localStorage.getItem('wellness_sleep')) || [];
+    const history = JSON.parse(WellnessMemory.getItem('sleep')) || [];
     if (!days) return history;
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - days);
@@ -141,7 +166,7 @@ export const WellnessMemory = {
     const entry = { id: activityId, type, name, duration, timestamp: new Date().toISOString() };
     const history = WellnessMemory.getActivityHistory(30);
     history.push(entry);
-    localStorage.setItem('wellness_activities', JSON.stringify(history));
+    WellnessMemory.setItem('activities', JSON.stringify(history));
 
     // Cloud Sync
     const userId = await WellnessMemory.getUserId();
@@ -156,7 +181,7 @@ export const WellnessMemory = {
   },
 
   getActivityHistory: (days = 7) => {
-    const history = JSON.parse(localStorage.getItem('wellness_activities')) || [];
+    const history = JSON.parse(WellnessMemory.getItem('activities')) || [];
     if (!days) return history;
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - days);
@@ -167,7 +192,7 @@ export const WellnessMemory = {
     const entry = { id: generateUUID(), ...stats, timestamp: new Date().toISOString() };
     const history = WellnessMemory.getSessionHistory(30);
     history.push(entry);
-    localStorage.setItem('wellness_sessions', JSON.stringify(history));
+    WellnessMemory.setItem('sessions', JSON.stringify(history));
 
     // Cloud Sync
     const userId = await WellnessMemory.getUserId();
@@ -182,7 +207,7 @@ export const WellnessMemory = {
   },
 
   getSessionHistory: (days = 30) => {
-    const history = JSON.parse(localStorage.getItem('wellness_sessions')) || [];
+    const history = JSON.parse(WellnessMemory.getItem('sessions')) || [];
     if (!days) return history;
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - days);
@@ -241,7 +266,7 @@ export const WellnessMemory = {
     history.push(entry);
     // Keep last 100 observations
     if (history.length > 100) history.shift();
-    localStorage.setItem('wellness_observations', JSON.stringify(history));
+    WellnessMemory.setItem('observations', JSON.stringify(history));
 
     // Cloud Sync
     const userId = await WellnessMemory.getUserId();
@@ -254,7 +279,7 @@ export const WellnessMemory = {
   },
 
   getObservations: () => {
-    return JSON.parse(localStorage.getItem('wellness_observations')) || [];
+    return JSON.parse(WellnessMemory.getItem('observations')) || [];
   },
 
   // ------------------------------------------------------------------------
@@ -312,11 +337,11 @@ export const WellnessMemory = {
     const filtered = history.filter(h => !h.timestamp.startsWith(todayStr));
     filtered.push({ score, timestamp: new Date().toISOString() });
     
-    localStorage.setItem('wellness_scores', JSON.stringify(filtered));
+    WellnessMemory.setItem('scores', JSON.stringify(filtered));
   },
 
   getScoreHistory: (days = 7) => {
-    const history = JSON.parse(localStorage.getItem('wellness_scores')) || [];
+    const history = JSON.parse(WellnessMemory.getItem('scores')) || [];
     if (!days) return history;
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - days);
@@ -362,11 +387,11 @@ export const WellnessMemory = {
   // ------------------------------------------------------------------------
   saveDailyPlan: (plan) => {
     const data = { plan, date: new Date().toISOString().split('T')[0] };
-    localStorage.setItem('wellness_daily_plan', JSON.stringify(data));
+    WellnessMemory.setItem('daily_plan', JSON.stringify(data));
   },
 
   getDailyPlan: () => {
-    const dataStr = localStorage.getItem('wellness_daily_plan');
+    const dataStr = WellnessMemory.getItem('daily_plan');
     if (!dataStr) return null;
     try {
       const data = JSON.parse(dataStr);
@@ -381,11 +406,11 @@ export const WellnessMemory = {
   saveConversation: (messages) => {
     // Keep last 20 messages to prevent context window explosion
     const truncated = messages.slice(-20);
-    localStorage.setItem('wellness_conversation', JSON.stringify(truncated));
+    WellnessMemory.setItem('conversation', JSON.stringify(truncated));
   },
 
   getConversation: () => {
-    return JSON.parse(localStorage.getItem('wellness_conversation')) || [];
+    return JSON.parse(WellnessMemory.getItem('conversation')) || [];
   },
 
   // ------------------------------------------------------------------------
@@ -399,7 +424,7 @@ export const WellnessMemory = {
                           import.meta.env.VITE_SUPABASE_URL.includes('placeholder.supabase.co');
     if (isPlaceholder) return;
 
-    const lastSync = localStorage.getItem('wellness_last_sync');
+    const lastSync = WellnessMemory.getItem('last_sync');
     if (lastSync && Date.now() - parseInt(lastSync) < 5 * 60 * 1000) {
       console.log('Skipping cloud sync, last sync was < 5 mins ago');
       return;
@@ -416,7 +441,7 @@ export const WellnessMemory = {
       // 1. Process Profile
       if (profileRes.status === 'fulfilled' && profileRes.value.data) {
         const profile = profileRes.value.data;
-        localStorage.setItem('wellness_profile', JSON.stringify({
+        WellnessMemory.setItem('profile', JSON.stringify({
           name: profile.name,
           age: profile.age,
           goals: profile.goals,
@@ -429,13 +454,13 @@ export const WellnessMemory = {
           stressLevel: profile.schedule?.stressLevel,
           aiAssessment: profile.ai_profile_summary
         }));
-        localStorage.setItem('wellness_onboarding_complete', 'true');
+        WellnessMemory.setItem('onboarding_complete', 'true');
       }
 
       // 2. Process Observations
       if (obsRes.status === 'fulfilled' && obsRes.value.data) {
         const obsLocal = obsRes.value.data.map(o => ({ id: o.id, text: o.observation, timestamp: o.created_at }));
-        localStorage.setItem('wellness_observations', JSON.stringify(obsLocal));
+        WellnessMemory.setItem('observations', JSON.stringify(obsLocal));
       }
 
       // 3. Process Wellness Logs and Merge
@@ -444,7 +469,7 @@ export const WellnessMemory = {
         
         // Helper to safely merge cloud data with local data by ID
         const mergeData = (localKey, cloudArray) => {
-          const localArray = JSON.parse(localStorage.getItem(localKey)) || [];
+          const localArray = JSON.parse(WellnessMemory.getItem(localKey)) || [];
           const merged = [...localArray];
           
           cloudArray.forEach(cloudItem => {
@@ -455,7 +480,7 @@ export const WellnessMemory = {
           
           // Sort chronologically
           merged.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
-          localStorage.setItem(localKey, JSON.stringify(merged));
+          WellnessMemory.setItem(localKey, JSON.stringify(merged));
         };
 
         const moods = logs.filter(l => l.log_type === 'mood').map(l => ({ 
@@ -468,7 +493,7 @@ export const WellnessMemory = {
         const sleeps = logs.filter(l => l.log_type === 'sleep').map(l => ({ 
           id: l.id, 
           hours: l.value, 
-          quality: l.note ? parseInt(l.note.replace(/\\D/g, '')) || 3 : 3, 
+          quality: l.note ? parseInt(l.note.replace(/\D/g, '')) || 3 : 3, 
           timestamp: l.created_at 
         }));
 
@@ -479,12 +504,12 @@ export const WellnessMemory = {
           timestamp: l.created_at
         }));
         
-        mergeData('wellness_mood', moods);
-        mergeData('wellness_sleep', sleeps);
-        mergeData('wellness_activities', activities);
+        mergeData('mood', moods);
+        mergeData('sleep', sleeps);
+        mergeData('activities', activities);
       }
       
-      localStorage.setItem('wellness_last_sync', Date.now().toString());
+      WellnessMemory.setItem('last_sync', Date.now().toString());
     } catch (e) {
       console.error("Failed to sync from cloud", e);
     }
@@ -494,9 +519,11 @@ export const WellnessMemory = {
   // UTILITY
   // ------------------------------------------------------------------------
   clearAllData: () => {
+    const userId = WellnessMemory.getUserIdSync();
+    const prefix = `wellness_${userId}_`;
     const keys = Object.keys(localStorage);
     keys.forEach(k => {
-      if (k.startsWith('wellness_') || k === 'yoga_current_user' || k === 'yoga_users') {
+      if (k.startsWith(prefix)) {
         localStorage.removeItem(k);
       }
     });
@@ -504,11 +531,14 @@ export const WellnessMemory = {
 
   exportData: () => {
     const data = {};
+    const userId = WellnessMemory.getUserIdSync();
+    const prefix = `wellness_${userId}_`;
     const keys = Object.keys(localStorage);
     keys.forEach(k => {
-      if (k.startsWith('wellness_')) {
-        try { data[k] = JSON.parse(localStorage.getItem(k)); } 
-        catch (e) { data[k] = localStorage.getItem(k); }
+      if (k.startsWith(prefix)) {
+        const cleanKey = k.replace(prefix, 'wellness_');
+        try { data[cleanKey] = JSON.parse(localStorage.getItem(k)); } 
+        catch (e) { data[cleanKey] = localStorage.getItem(k); }
       }
     });
     return JSON.stringify(data, null, 2);

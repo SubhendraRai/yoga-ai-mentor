@@ -1,12 +1,29 @@
 // src/lib/supabaseMemory.js
 import { supabase } from './supabase';
 import { callAI } from './ai';
+import { WellnessMemory } from './wellnessMemory';
+
+// Helper to determine if we should fall back to local storage
+const isGuestOrMock = (userId) => {
+  if (!userId || userId === 'guest' || userId.startsWith('mock_')) return true;
+  const isPlaceholder = !import.meta.env.VITE_SUPABASE_URL || 
+                        import.meta.env.VITE_SUPABASE_URL.includes('placeholder.supabase.co');
+  return isPlaceholder;
+};
 
 /**
- * Saves a single chat message to Supabase.
+ * Saves a single chat message.
  */
 export async function saveChatMessage(userId, role, content) {
   if (!userId) return;
+  
+  if (isGuestOrMock(userId)) {
+    const msgs = WellnessMemory.getConversation();
+    msgs.push({ role: role === 'model' ? 'mentor' : role, text: content, timestamp: Date.now() });
+    WellnessMemory.saveConversation(msgs);
+    return;
+  }
+
   const { error } = await supabase
     .from('chat_history')
     .insert([{ user_id: userId, role, content }]);
@@ -15,10 +32,15 @@ export async function saveChatMessage(userId, role, content) {
 }
 
 /**
- * Fetches the recent chat history for the user.
+ * Fetches the recent chat history.
  */
 export async function getChatHistory(userId, limit = 20) {
   if (!userId) return [];
+
+  if (isGuestOrMock(userId)) {
+    return WellnessMemory.getConversation();
+  }
+
   const { data, error } = await supabase
     .from('chat_history')
     .select('*')
@@ -42,6 +64,12 @@ export async function getChatHistory(userId, limit = 20) {
  */
 export async function getUserMemories(userId) {
   if (!userId) return "";
+
+  if (isGuestOrMock(userId)) {
+    const memories = JSON.parse(WellnessMemory.getItem('memories') || '[]');
+    return memories.map(m => `- ${m}`).join('\n');
+  }
+
   const { data, error } = await supabase
     .from('memories')
     .select('memory')
@@ -54,7 +82,7 @@ export async function getUserMemories(userId) {
 }
 
 /**
- * Extracts facts from a user message in the background and saves to Supabase.
+ * Extracts facts from a user message in the background and saves them.
  */
 export async function extractAndSaveMemories(userId, userMessage) {
   if (!userId || !userMessage || userMessage.length < 5) return null;
@@ -88,7 +116,15 @@ Respond ONLY in valid JSON format:
       
       if (parsed.fact && parsed.fact !== 'null' && parsed.fact !== 'NONE') {
         const cleanMemory = parsed.fact.replace(/^[-*•]\s*/, '').trim();
-        await supabase.from('memories').insert([{ user_id: userId, memory: cleanMemory }]);
+        if (isGuestOrMock(userId)) {
+          const memories = JSON.parse(WellnessMemory.getItem('memories') || '[]');
+          if (!memories.includes(cleanMemory)) {
+            memories.push(cleanMemory);
+            WellnessMemory.setItem('memories', JSON.stringify(memories));
+          }
+        } else {
+          await supabase.from('memories').insert([{ user_id: userId, memory: cleanMemory }]);
+        }
         console.log("Memory Extracted & Saved:", cleanMemory);
       }
       
