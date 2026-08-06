@@ -6,12 +6,9 @@
 
 let currentApiKey = import.meta.env.VITE_GEMINI_API_KEY;
 const altApiKey = import.meta.env.VITE_GEMINI_API_KEY_ALT;
-const anthropicApiKey = import.meta.env.VITE_ANTHROPIC_API_KEY;
 const MODEL = 'gemini-2.0-flash';
-const ANTHROPIC_MODEL = 'claude-3-5-haiku-20241022';
 
 const getGeminiEndpoint = (key) => `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${key}`;
-const ANTHROPIC_ENDPOINT = '/api/anthropic'; // Rewritten by vite config / vercel
 
 const GROQ_API_KEY = import.meta.env.VITE_GROQ_API_KEY;
 
